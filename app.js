@@ -140,7 +140,13 @@ async function refresh() {
     stateSha = fresh.sha;
     banner('');
   } catch (e) {
-    banner(`Couldn't load data. ${e.message}`);
+    if (!local.token) {
+      banner('Welcome. Add your GitHub token below to get started.');
+    } else if (e.status === 404 || e.status === 403) {
+      banner(`That token cannot read ${CFG.repo}. It needs Contents: Read and write on that repo.`);
+    } else {
+      banner(`Couldn't load data. ${e.message}`);
+    }
   }
   render();
 }
@@ -395,8 +401,9 @@ function urlB64ToUint8(base64) {
 
 async function enablePush() {
   try {
-    if (!local.me) { banner('Pick who you are first.'); return; }
     if (!local.token) { banner('Save your GitHub token first.'); return; }
+    if (!state) { banner('Your data has not loaded yet — check the token above.'); return; }
+    if (!local.me) { banner('Pick who you are first.'); return; }
 
     const reg = await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
@@ -467,9 +474,10 @@ function renderPushState() {
 /* ---------- settings ---------- */
 
 function renderSettings() {
+  const people = state?.people ?? PLACEHOLDER_PEOPLE;
   const choices = $('#identity-choices');
   choices.replaceChildren();
-  for (const p of state.people) {
+  for (const p of people) {
     const b = el('button', {
       type: 'button',
       textContent: p.name,
@@ -479,9 +487,10 @@ function renderSettings() {
     choices.append(b);
   }
 
-  $('#name-a').value = state.people[0].name;
-  $('#name-b').value = state.people[1].name;
-  $('#tz').value = state.timezone || 'UTC';
+  $('#name-a').value = people[0].name;
+  $('#name-b').value = people[1].name;
+  $('#tz').value = state?.timezone || 'America/New_York';
+  $('#save-settings').disabled = !state;
   $('#repo-label').textContent = CFG.repo;
   $('#token').value = local.token;
   $('#token-state').textContent = local.token
@@ -493,14 +502,19 @@ function renderSettings() {
 
 /* ---------- render / routing ---------- */
 
+// Fallback identities for the very first launch, before any data has loaded.
+const PLACEHOLDER_PEOPLE = [{ id: 'a', name: 'Person A' }, { id: 'b', name: 'Person B' }];
+
 function render() {
-  if (!state) return;
-  $('#whoami').textContent = local.me ? personName(state, local.me) : 'Who are you?';
+  $('#whoami').textContent =
+    state && local.me ? personName(state, local.me) : 'Who are you?';
   const view = document.body.dataset.view || 'weekend';
+  // Settings must work with no state at all — it is where the token goes.
+  if (view === 'settings') { renderSettings(); return; }
+  if (!state) return;
   if (view === 'weekend') renderWeekend();
   if (view === 'tasks') renderAllTasks();
   if (view === 'history') renderHistory();
-  if (view === 'settings') renderSettings();
 }
 
 function show(view) {
@@ -579,5 +593,5 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && state) refresh();
 });
 
-show('weekend');
+show(local.token ? 'weekend' : 'settings');
 refresh();
