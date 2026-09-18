@@ -14,9 +14,10 @@ this repo holds code only, and the deployed site is an empty shell until someone
 signs in with a token.
 
 - **Friday afternoon** each person gets a push listing the chores they owe that
-  weekend, with the how-to steps for each one.
-- **Tap a chore off** in the app. It records who did it and when, and the next
-  turn goes to the other person.
+  weekend, with the how-to steps for each one. A **Saturday-night** nudge and a
+  **Sunday 5pm** last call chase whatever is still outstanding.
+- **Tap a chore off** in the app. It records who did it and when, the next turn
+  goes to the other person, and you get a small celebration on screen.
 - **History** is the permanent record — and because every change is a git
   commit, `git log data/state.json` is an even more complete one.
 
@@ -70,24 +71,57 @@ The **Tasks** tab is where you change how often something comes around, switch i
 between `alternate` and `each`, hand the next turn to a specific person, or edit
 the instructions that go out in the reminder.
 
+## Celebrations
+
+Checking a chore off plays a themed animation, chosen from the task's name in
+`animations.js`:
+
+| Task looks like | You get |
+| --- | --- |
+| vacuum, couch, carpet | little vacuums trundling across, hoovering up dust |
+| swiffer, mop, sweep, floor | brooms sweeping past |
+| bath, tub, shower, toilet, sink | bubbles rising |
+| fridge, freezer, ice | snow and ice drifting down |
+| stove, counter, kitchen, wipe | sparkles |
+| anything else | confetti |
+
+Rename a task and it re-matches on its own. To pin one explicitly, set an
+`animation` field on the task to a theme name. Nothing plays for anyone whose
+system asks for reduced motion.
+
 ## Reminders
 
-The cron lives in the **data** repo (`.github/workflows/remind.yml`, created from
-`template/`). It checks out this repo for the code, runs hourly across Friday
-UTC, and `scripts/send-reminders.mjs` decides which run is the right *local*
-moment, based on `timezone` and `reminderHour` in the data repo's `state.json`.
-Daylight saving is therefore a non-issue and the cron never needs editing —
-change the hour in the app's Settings tab instead.
+Three per weekend, each only chasing what is still outstanding — whoever has
+finished hears nothing more:
 
-It records who it has already told for a given weekend, so a run delayed by
-GitHub still lands exactly once. A Sunday run acts as a catch-up if Friday's was
-missed entirely.
+| Stage | When (local) | Says |
+| --- | --- | --- |
+| `friday` | Friday, `reminderHour` (4pm) | the weekend's list, with how-to steps |
+| `saturday` | Saturday, `saturdayHour` (8pm) | what's left, due tomorrow |
+| `sunday` | Sunday, `sundayHour` (5pm) | last call, finish tonight |
+
+
+The cron lives in the **data** repo (`.github/workflows/remind.yml`, created
+from `template/`). It checks out this repo for the code and runs hourly from
+Friday evening UTC through Monday's small hours;
+`scripts/send-reminders.mjs` works out which stage the current *local* moment
+belongs to, from `timezone` and the three hour settings in the data repo's
+`state.json`. Daylight saving is therefore a non-issue and the cron never needs
+editing.
+
+It records who it has told for each stage, so a run delayed by GitHub still
+lands exactly once. Earlier stages are marked superseded when a later one goes
+out, so a missed Friday run can never deliver a stale Friday message on Sunday
+— you get the Saturday or Sunday wording instead.
 
 Preview what the notifications will say, without sending anything:
 
 ```bash
 CLEANIT_DATA_DIR=../cleanit-data/data npm run remind -- --dry-run
 ```
+
+Add `--stage=saturday` (or `friday`/`sunday`) to preview a specific one, and
+`CLEANIT_NOW=2026-09-19T24:00:00Z` to pretend it is another moment.
 
 Send one right now (Actions tab → Weekend reminders → Run workflow) if you want
 to test on a real phone.
@@ -126,6 +160,7 @@ This repo (public):
 
 ```
 index.html  app.js  styles.css     the app
+animations.js                      completion celebrations
 schedule.js                        due dates and rotation, shared by app and cron
 config.js                          data repo + VAPID public key (written by setup)
 sw.js  manifest.webmanifest        service worker and PWA install metadata

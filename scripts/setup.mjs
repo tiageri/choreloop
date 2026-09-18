@@ -219,6 +219,9 @@ Each of you, once:
 
 The Home Screen step is required: iOS will not deliver web push to a page
 running in a normal Safari tab.
+
+Reminders go out Friday 4pm, Saturday 8pm and Sunday 5pm local, and only chase
+whatever is still outstanding. Change those hours in the app's Settings tab.
 `);
 
 rl.close();

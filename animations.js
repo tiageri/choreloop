@@ -276,7 +276,8 @@ function frame(now) {
   }
 
   particles = particles.filter((p) => p.alpha > 0 && now - p.born < p.life);
-  vacuums = vacuums.filter((v) => v.x > -260 && v.x < W + 260);
+  // Age cap as well as the bounds check: nothing may keep the canvas alive.
+  vacuums = vacuums.filter((v) => now - v.born < 8000 && v.x > -260 && v.x < W + 260);
 
   if (particles.length || vacuums.length) raf = requestAnimationFrame(frame);
   else teardown();
