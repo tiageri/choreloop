@@ -1,0 +1,17 @@
+{
+  "name": "choreloop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared cleaning rotation with Friday push reminders, hosted on GitHub Pages.",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "vapid": "node scripts/generate-vapid.mjs",
+    "icons": "python3 scripts/make-icons.py",
+    "remind": "node scripts/send-reminders.mjs",
+    "preview": "node scripts/serve.mjs"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Choreloop</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<meta name="theme-color" content="#1f6f5c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Choreloop">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>Choreloop</h1>
+  <button id="whoami" class="who" type="button" aria-label="Switch person"></button>
+</header>
+
+<div id="banner" class="banner" hidden></div>
+
+<main>
+  <!-- ---------- This weekend ---------- -->
+  <section id="view-weekend" class="view">
+    <p class="window-label" id="window-label"></p>
+    <div id="mine"></div>
+    <div id="theirs"></div>
+  </section>
+
+  <!-- ---------- All tasks ---------- -->
+  <section id="view-tasks" class="view" hidden>
+    <p class="hint">Tap a task to edit how often it comes around and what the reminder says.</p>
+    <div id="all-tasks"></div>
+  </section>
+
+  <!-- ---------- History ---------- -->
+  <section id="view-history" class="view" hidden>
+    <div id="history"></div>
+  </section>
+
+  <!-- ---------- Settings ---------- -->
+  <section id="view-settings" class="view" hidden>
+    <div class="card">
+      <h2>Who are you?</h2>
+      <div id="identity-choices" class="choices"></div>
+      <p class="hint">Stored on this device only. Each phone picks its own.</p>
+    </div>
+
+    <div class="card">
+      <h2>Reminders</h2>
+      <div id="push-state"></div>
+    </div>
+
+    <div class="card">
+      <h2>Names</h2>
+      <label>Person A <input id="name-a" type="text" autocomplete="off"></label>
+      <label>Person B <input id="name-b" type="text" autocomplete="off"></label>
+      <label>Time zone
+        <input id="tz" type="text" autocomplete="off" placeholder="America/New_York">
+      </label>
+      <button id="save-settings" class="primary" type="button">Save</button>
+    </div>
+
+    <div class="card">
+      <h2>GitHub access</h2>
+      <p class="hint">
+        A fine-grained token with <strong>Contents: Read and write</strong> on
+        <code id="repo-label"></code>. It is kept in this browser only and is
+        never written into the app's data.
+      </p>
+      <label>Token <input id="token" type="password" autocomplete="off" placeholder="github_pat_..."></label>
+      <div class="row">
+        <button id="save-token" class="primary" type="button">Save token</button>
+        <button id="clear-token" type="button">Forget</button>
+      </div>
+      <p id="token-state" class="hint"></p>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-view="weekend" class="active" type="button"><span>Weekend</span></button>
+  <button data-view="tasks" type="button"><span>Tasks</span></button>
+  <button data-view="history" type="button"><span>History</span></button>
+  <button data-view="settings" type="button"><span>Settings</span></button>
+</nav>
+
+<!-- Task editor -->
+<dialog id="editor">
+  <form method="dialog">
+    <h2 id="editor-title"></h2>
+    <label>Name <input id="e-name" type="text"></label>
+    <label>How often (days) <input id="e-freq" type="number" min="1" max="365" inputmode="numeric"></label>
+    <label>Who does it
+      <select id="e-mode">
+        <option value="alternate">We alternate</option>
+        <option value="each">We each do our own, every time</option>
+      </select>
+    </label>
+    <label id="e-owner-wrap">Up next
+      <select id="e-owner"></select>
+    </label>
+    <label>Instructions (included in the reminder)
+      <textarea id="e-instructions" rows="10"></textarea>
+    </label>
+    <div class="row">
+      <button value="cancel" type="submit">Cancel</button>
+      <button value="save" id="e-save" class="primary" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

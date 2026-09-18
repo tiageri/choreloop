@@ -1,0 +1,61 @@
+name: Weekend reminders
+
+on:
+  schedule:
+    # Hourly across Friday and into Saturday UTC. The script itself decides
+    # which run is the right local moment, so daylight saving and time-zone
+    # changes never need a cron edit.
+    - cron: '0 15-23 * * 5'
+    - cron: '0 0-4 * * 6'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Send now, ignoring the schedule and the already-sent marker'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: choreloop-reminders
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the rebase below works if a chore was checked off
+          # while this job was running.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci --omit=dev
+
+      - name: Send reminders
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          CHORELOOP_URL: ${{ vars.CHORELOOP_URL }}
+        run: node scripts/send-reminders.mjs ${{ inputs.force && '--force' || '' }}
+
+      - name: Record what was sent
+        run: |
+          if [ -n "$(git status --porcelain data/)" ]; then
+            git config user.name  'choreloop[bot]'
+            git config user.email 'choreloop[bot]@users.noreply.github.com'
+            git add data/
+            git commit -m 'Record weekend reminders'
+            # Someone may have checked off a chore while this job ran.
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo 'Nothing to record.'
+          fi

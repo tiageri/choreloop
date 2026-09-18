@@ -1,0 +1,272 @@
+:root {
+  --bg: #f6f5f1;
+  --card: #ffffff;
+  --ink: #1c1b19;
+  --muted: #6b6862;
+  --line: #e2ded6;
+  --accent: #1f6f5c;
+  --accent-soft: #e6f1ed;
+  --warn: #9a4b20;
+  --warn-soft: #fbeee5;
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181a;
+    --card: #212326;
+    --ink: #eceae6;
+    --muted: #9a968e;
+    --line: #34373b;
+    --accent: #6cc2a8;
+    --accent-soft: #1d2f2a;
+    --warn: #e0a077;
+    --warn-soft: #33251b;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 0 calc(64px + env(safe-area-inset-bottom));
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------- chrome ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.topbar h1 {
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.who {
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+main { padding: 16px; max-width: 640px; margin: 0 auto; }
+
+.tabs {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 5;
+}
+
+.tabs button {
+  flex: 1;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px 4px;
+  cursor: pointer;
+}
+
+.tabs button.active { color: var(--accent); }
+
+.banner {
+  margin: 0;
+  padding: 11px 16px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--line);
+}
+
+.banner.ok { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- content ---------- */
+
+.window-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+h2.group {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  margin: 26px 0 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+h2.group .count { color: var(--muted); font-weight: 500; font-size: 13px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.card h2 { font-size: 15px; margin: 0 0 12px; }
+
+.task { display: flex; gap: 12px; align-items: flex-start; }
+
+.task .check {
+  flex: none;
+  width: 26px; height: 26px;
+  margin-top: 1px;
+  border-radius: 8px;
+  border: 2px solid var(--line);
+  background: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: transparent;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.task .check.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+.task .check:disabled { opacity: 0.4; cursor: default; }
+
+.task .body { flex: 1; min-width: 0; }
+.task .name { font-weight: 600; letter-spacing: -0.005em; }
+.task.done .name { text-decoration: line-through; color: var(--muted); }
+
+.meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.meta .overdue { color: var(--warn); font-weight: 600; }
+
+details.how { margin-top: 9px; }
+
+details.how summary {
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+details.how summary::-webkit-details-marker { display: none; }
+details.how summary::before { content: "▸ "; }
+details.how[open] summary::before { content: "▾ "; }
+
+details.how .text {
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: var(--ink);
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+
+.theirs .card { opacity: 0.72; }
+
+.empty { color: var(--muted); font-size: 14px; padding: 6px 2px; }
+
+.hint { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+.log-day { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 20px 0 8px; }
+.log-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.log-row .by { color: var(--muted); font-size: 13px; flex: none; }
+
+/* ---------- forms ---------- */
+
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+
+input, select, textarea {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 10px 11px;
+  font: inherit;
+  font-size: 16px; /* keeps iOS from zooming on focus */
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+textarea { resize: vertical; line-height: 1.45; }
+
+button {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.choices button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+dialog {
+  border: 0;
+  border-radius: var(--radius);
+  padding: 18px;
+  width: min(560px, calc(100vw - 28px));
+  background: var(--card);
+  color: var(--ink);
+  max-height: 86vh;
+  overflow: hidden;
+}
+
+/* display must be set only when open, or a closed dialog becomes visible. */
+dialog[open] { display: flex; flex-direction: column; }
+
+/* Let the instructions box take the slack so Cancel/Save never scroll away. */
+dialog form { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+dialog form > h2, dialog form > label, dialog form > .row { flex: none; }
+dialog form > label:last-of-type {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+dialog form > label:last-of-type textarea { flex: 1 1 auto; min-height: 96px; }
+dialog form > .row { padding-top: 4px; }
+
+dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+dialog h2 { margin: 0 0 14px; font-size: 17px; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+  background: var(--bg);
+  padding: 1px 5px;
+  border-radius: 5px;
+  word-break: break-all;
+}

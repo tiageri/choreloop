@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "timezone": "America/New_York",
+  "reminderHour": 16,
+  "people": [
+    {
+      "id": "a",
+      "name": "Me"
+    },
+    {
+      "id": "b",
+      "name": "Roommate"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "vacuum-floors",
+      "name": "Vacuum upstairs and downstairs",
+      "frequencyDays": 7,
+      "mode": "alternate",
+      "nextOwner": "a",
+      "active": true,
+      "instructions": "Both floors, including under the dining table and the hallway runner.\n\n1. Pick up anything on the floor first (shoes, cords, laundry).\n2. Empty the canister before you start if it's more than half full.\n3. Use the crevice tool along the baseboards and in the corners.\n4. Do the stairs too — they get missed the most.\n5. Empty the canister and rinse the filter when you're done."
+    },
+    {
+      "id": "swiffer-upstairs",
+      "name": "Swiffer upstairs",
+      "frequencyDays": 7,
+      "mode": "alternate",
+      "nextOwner": "b",
+      "active": true,
+      "instructions": "Wet Swiffer on the hard floors upstairs. Do this AFTER vacuuming, not before.\n\n1. Fresh pad — don't reuse last week's.\n2. Work away from the stairs so you're not walking back over wet floor.\n3. Get the edges and the spot in front of the sink.\n4. Toss the pad; refill the solution if it's low."
+    },
+    {
+      "id": "bathroom-individual",
+      "name": "Toilet and bathroom sink",
+      "frequencyDays": 7,
+      "mode": "each",
+      "active": true,
+      "instructions": "Each of us does our own bathroom — this one never alternates.\n\n1. Toilet bowl cleaner under the rim, let it sit while you do the sink.\n2. Sink: bowl, faucet, handles, and the counter around it.\n3. Wipe the toilet seat (both sides), lid, tank, and base.\n4. Scrub the bowl and flush.\n5. Quick pass on the mirror while you're there."
+    },
+    {
+      "id": "vacuum-couches",
+      "name": "Vacuum the couches upstairs and downstairs",
+      "frequencyDays": 28,
+      "mode": "alternate",
+      "nextOwner": "a",
+      "active": true,
+      "instructions": "Upholstery attachment on both couches.\n\n1. Take the cushions off and vacuum the deck underneath.\n2. Get into the seams with the crevice tool.\n3. Do the back and arms, not just the seat.\n4. Put the cushions back and flip them while you're at it."
+    },
+    {
+      "id": "bathtub",
+      "name": "Clean bathtub",
+      "frequencyDays": 14,
+      "mode": "alternate",
+      "nextOwner": "b",
+      "active": true,
+      "instructions": "1. Move the bottles and mats out of the tub.\n2. Spray the whole tub and surround, let it sit 5 minutes — that's the part that actually does the work.\n3. Scrub with the tub brush: walls, floor, and the ring around the drain.\n4. Don't forget the tracks/ledge where soap collects.\n5. Rinse fully with the shower head so no residue is left."
+    },
+    {
+      "id": "fridge",
+      "name": "Clean out fridge, wipe inside",
+      "frequencyDays": 28,
+      "mode": "alternate",
+      "nextOwner": "a",
+      "active": true,
+      "instructions": "1. Toss anything expired or obviously done. If it's ambiguous and it's not yours, text the other person instead of pitching it.\n2. Pull the shelves and drawers out where you can.\n3. Wipe every surface with warm soapy water — shelves, drawer bottoms, door bins, and the walls.\n4. Get the drips on the underside of the shelves.\n5. Put things back grouped so we can actually see what we have."
+    },
+    {
+      "id": "stove-counters",
+      "name": "Thoroughly wipe down stove top and kitchen counters",
+      "frequencyDays": 7,
+      "mode": "alternate",
+      "nextOwner": "b",
+      "active": true,
+      "instructions": "Thorough, not a quick wipe.\n\n1. Clear the counters completely — appliances, mail, everything off.\n2. Stove: lift the grates/burner caps, degrease underneath, scrub the cooked-on spots.\n3. Wipe the control knobs and the front panel.\n4. Counters: full surface, then the backsplash and the edge where crumbs hide.\n5. Wipe the outside of the microwave and toaster before putting things back."
+    }
+  ],
+  "log": []
+}
