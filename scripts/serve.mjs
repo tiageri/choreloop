@@ -36,10 +36,11 @@ const readBody = (req) =>
 
 // Seed the scratch data directory on first run.
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(path.join(DATA_DIR, 'data'), { recursive: true });
 for (const [name, seed] of [
-  ['state.json', path.join(ROOT, 'data/seed.json')],
-  ['subscriptions.json', null],
-  ['reminders-sent.json', null],
+  ['data/state.json', path.join(ROOT, 'data/seed.json')],
+  ['data/subscriptions.json', null],
+  ['data/reminders-sent.json', null],
 ]) {
   const target = path.join(DATA_DIR, name);
   if (fs.existsSync(target)) continue;
@@ -57,8 +58,10 @@ const server = http.createServer(async (req, res) => {
   // --- emulated GitHub contents API ---
   const match = url.pathname.match(/^\/repos\/[^/]+\/[^/]+\/contents\/(.+)$/);
   if (match) {
-    const file = path.join(DATA_DIR, path.basename(decodeURIComponent(match[1])));
-    if (!file.startsWith(DATA_DIR)) return send(403, '{"message":"forbidden"}');
+    // Resolve the full path, exactly as GitHub would: a request for the wrong
+    // directory must 404 here too, or real path bugs stay invisible locally.
+    const file = path.resolve(DATA_DIR, decodeURIComponent(match[1]));
+    if (!file.startsWith(DATA_DIR + path.sep)) return send(403, '{"message":"forbidden"}');
 
     if (req.method === 'GET') {
       if (!fs.existsSync(file)) return send(404, '{"message":"Not Found"}');

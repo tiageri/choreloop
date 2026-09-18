@@ -143,8 +143,13 @@ async function refresh() {
   } catch (e) {
     if (!local.token) {
       banner('Welcome. Add your GitHub token below to get started.');
-    } else if (e.status === 404 || e.status === 403) {
-      banner(`That token cannot read ${CFG.repo}. It needs Contents: Read and write on that repo.`);
+    } else if (e.status === 403) {
+      banner(`That token is not allowed to read ${CFG.repo}. It needs Contents: Read and write.`);
+    } else if (e.status === 404) {
+      banner(
+        `Could not find ${CFG.dataPath} in ${CFG.repo}. ` +
+        `Either the file is not there, or the token has no access to that repo.`
+      );
     } else {
       banner(`Couldn't load data. ${e.message}`);
     }

@@ -4,7 +4,7 @@
 window.CLEANIT_CONFIG = {
   repo: "tiageri/cleanit-data",
   branch: "main",
-  dataPath: "state.json",
-  subsPath: "subscriptions.json",
+  dataPath: "data/state.json",
+  subsPath: "data/subscriptions.json",
   vapidPublicKey: "BNgtciUd5wWhV1ykdI2etuLoVBtvS_l5FunvMlsdOdVguLGglr1wlfLGi4_JxenEyvWgBnfMfeRKFzV5ABQvXcE",
 };

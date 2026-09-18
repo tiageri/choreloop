@@ -155,8 +155,8 @@ fs.writeFileSync(path.join(ROOT, 'config.js'),
 window.CLEANIT_CONFIG = {
   repo: ${JSON.stringify(dataRepo)},
   branch: "main",
-  dataPath: "state.json",
-  subsPath: "subscriptions.json",
+  dataPath: "data/state.json",
+  subsPath: "data/subscriptions.json",
   vapidPublicKey: ${JSON.stringify(vapidPublic)},
 };
 `);
