@@ -14,57 +14,96 @@
       "name": "Roommate"
     }
   ],
+  "daily": [
+    {
+      "icon": "🧽",
+      "text": "Wipe kitchen counters after use with cleaning spray and paper towel, or Clorox wipe"
+    },
+    {
+      "icon": "🔥",
+      "text": "Wipe stovetop after use, including around the knobs and underneath metal grates with cleaning spray and paper towel, or Clorox wipe"
+    },
+    {
+      "icon": "🧹",
+      "text": "Sweep floor after cooking and wipe anything sticky/wet with a Clorox wipe"
+    },
+    {
+      "icon": "🗑️",
+      "text": "Take out trash when lid doesn’t close fully"
+    },
+    {
+      "icon": "🍳",
+      "text": "Dishes — items that don’t go in dishwasher (pots, pans, knives, etc) washed within 24 hours"
+    },
+    {
+      "icon": "🚰",
+      "text": "Sink — all food scraps out of the drain after use, sponge in holder"
+    },
+    {
+      "icon": "🍽️",
+      "text": "Dishwasher — whoever notices it’s clean unloads and loads anything from the sink, if dirty then load your own dishes"
+    },
+    {
+      "icon": "🚿",
+      "text": "Throw away hair from shower drain after showering"
+    },
+    {
+      "icon": "📦",
+      "text": "Boxes broken down and taken out within 24 hours"
+    }
+  ],
+  "groups": {
+    "floors": {
+      "name": "Floors",
+      "note": "Whoever has upstairs vacuums it first, then Swiffers, so nothing waits on the other person. The other person does downstairs.",
+      "nextOwner": "a",
+      "cycleStart": null
+    }
+  },
   "tasks": [
     {
-      "id": "vacuum-floors",
-      "name": "Vacuum upstairs and downstairs",
+      "id": "vacuum-upstairs",
+      "name": "Vacuum upstairs + upstairs couch",
       "frequencyDays": 7,
       "mode": "alternate",
-      "nextOwner": "a",
+      "group": "floors",
       "active": true,
-      "instructions": "Both floors, including under the dining table and the hallway runner.\n\n1. Pick up anything on the floor first (shoes, cords, laundry).\n2. Empty the canister before you start if it's more than half full.\n3. Use the crevice tool along the baseboards and in the corners.\n4. Do the stairs too — they get missed the most.\n5. Empty the canister and rinse the filter when you're done."
+      "instructions": "Vacuum all of upstairs, then the upstairs couch. You have Swiffer this week too, so vacuum first.\n\n1. Pick up anything on the floor first (shoes, cords, laundry).\n2. Empty the canister if it's more than half full.\n3. Crevice tool along the baseboards and in the corners.\n4. Couch: cushions off, vacuum the deck underneath and the seams, then the back and arms.\n5. Empty the canister and rinse the filter when you're done."
     },
     {
       "id": "swiffer-upstairs",
       "name": "Swiffer upstairs",
       "frequencyDays": 7,
       "mode": "alternate",
-      "nextOwner": "b",
+      "group": "floors",
       "active": true,
-      "instructions": "Wet Swiffer on the hard floors upstairs. Do this AFTER vacuuming, not before.\n\n1. Fresh pad — don't reuse last week's.\n2. Work away from the stairs so you're not walking back over wet floor.\n3. Get the edges and the spot in front of the sink.\n4. Toss the pad; refill the solution if it's low."
+      "instructions": "Always after vacuuming upstairs — it's the same person, so nobody is waiting on anybody.\n\n1. Fresh pad — don't reuse last week's.\n2. Work away from the stairs so you're not walking back over wet floor.\n3. Get the edges and the spot in front of the sink.\n4. Toss the pad; refill the solution if it's low."
     },
     {
-      "id": "bathroom-individual",
-      "name": "Toilet and bathroom sink",
+      "id": "vacuum-downstairs",
+      "name": "Vacuum downstairs + downstairs couch",
       "frequencyDays": 7,
-      "mode": "each",
-      "active": true,
-      "instructions": "Each of us does our own bathroom — this one never alternates.\n\n1. Toilet bowl cleaner under the rim, let it sit while you do the sink.\n2. Sink: bowl, faucet, handles, and the counter around it.\n3. Wipe the toilet seat (both sides), lid, tank, and base.\n4. Scrub the bowl and flush.\n5. Quick pass on the mirror while you're there."
-    },
-    {
-      "id": "vacuum-couches",
-      "name": "Vacuum the couches upstairs and downstairs",
-      "frequencyDays": 28,
       "mode": "alternate",
-      "nextOwner": "a",
+      "group": "floors",
+      "opposite": true,
       "active": true,
-      "instructions": "Upholstery attachment on both couches.\n\n1. Take the cushions off and vacuum the deck underneath.\n2. Get into the seams with the crevice tool.\n3. Do the back and arms, not just the seat.\n4. Put the cushions back and flip them while you're at it."
+      "instructions": "Vacuum all of downstairs, then the downstairs couch.\n\n1. Pick up anything on the floor first.\n2. Under the dining table and along the hallway runner.\n3. Do the stairs too — they get missed the most.\n4. Couch: cushions off, vacuum the deck underneath and the seams, then the back and arms.\n5. Empty the canister and rinse the filter when you're done."
     },
     {
       "id": "bathtub",
       "name": "Clean bathtub",
-      "frequencyDays": 14,
+      "frequencyDays": 7,
       "mode": "alternate",
-      "nextOwner": "b",
+      "nextOwner": "a",
       "active": true,
       "instructions": "1. Move the bottles and mats out of the tub.\n2. Spray the whole tub and surround, let it sit 5 minutes — that's the part that actually does the work.\n3. Scrub with the tub brush: walls, floor, and the ring around the drain.\n4. Don't forget the tracks/ledge where soap collects.\n5. Rinse fully with the shower head so no residue is left."
     },
     {
       "id": "fridge",
       "name": "Clean out fridge, wipe inside",
-      "frequencyDays": 28,
+      "frequencyDays": 7,
       "mode": "alternate",
-      "nextOwner": "a",
+      "nextOwner": "b",
       "active": true,
       "instructions": "1. Toss anything expired or obviously done. If it's ambiguous and it's not yours, text the other person instead of pitching it.\n2. Pull the shelves and drawers out where you can.\n3. Wipe every surface with warm soapy water — shelves, drawer bottoms, door bins, and the walls.\n4. Get the drips on the underside of the shelves.\n5. Put things back grouped so we can actually see what we have."
     },
@@ -76,6 +115,14 @@
       "nextOwner": "b",
       "active": true,
       "instructions": "Thorough, not a quick wipe.\n\n1. Clear the counters completely — appliances, mail, everything off.\n2. Stove: lift the grates/burner caps, degrease underneath, scrub the cooked-on spots.\n3. Wipe the control knobs and the front panel.\n4. Counters: full surface, then the backsplash and the edge where crumbs hide.\n5. Wipe the outside of the microwave and toaster before putting things back."
+    },
+    {
+      "id": "bathroom-individual",
+      "name": "Toilet and bathroom sink",
+      "frequencyDays": 7,
+      "mode": "each",
+      "active": true,
+      "instructions": "Each of us does our own bathroom — this one never alternates.\n\n1. Toilet bowl cleaner under the rim, let it sit while you do the sink.\n2. Sink: bowl, faucet, handles, and the counter around it.\n3. Wipe the toilet seat (both sides), lid, tank, and base.\n4. Scrub the bowl and flush.\n5. Quick pass on the mirror while you're there."
     }
   ],
   "log": []

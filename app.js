@@ -1,6 +1,6 @@
 import {
   DAY, weekendPlan, weekendWindow, personName, otherPerson,
-  completeTask, undoTask, assignments, startOfDay,
+  completeTask, undoTask, assignments, startOfDay, ownerOf, upNext,
 } from './schedule.js';
 import { celebrate } from './animations.js';
 
@@ -305,36 +305,156 @@ function renderWeekend() {
 
 /* ---------- all tasks ---------- */
 
+/** Hand the task (or its whole linked group) to the other person. */
+function swapOwner(task) {
+  mutate((s) => {
+    const t = s.tasks.find((x) => x.id === task.id);
+    if (t.group) {
+      const g = s.groups[t.group];
+      g.nextOwner = otherPerson(s, g.nextOwner ?? s.people[0].id);
+    } else {
+      t.nextOwner = otherPerson(s, t.nextOwner ?? s.people[0].id);
+    }
+  }, `Swap who's up: ${task.group ? state.groups?.[task.group]?.name ?? task.name : task.name}`);
+}
+
+function personPill(personId, task = null) {
+  if (!personId) return el('span', { className: 'pill both', textContent: 'Each of us' });
+  const idx = state.people.findIndex((p) => p.id === personId);
+  const cls = `pill person-${idx === 1 ? 'b' : 'a'}`;
+  if (!task) return el('span', { className: cls, textContent: personName(state, personId) });
+
+  const pill = el('button', {
+    type: 'button',
+    className: `${cls} swap`,
+    disabled: busy,
+    ariaLabel: `${personName(state, personId)} is up. Tap to give it to ${personName(state, otherPerson(state, personId))}.`,
+  }, personName(state, personId), el('span', { className: 'swap-icon', textContent: '⇄' }));
+  pill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    swapOwner(task);
+  });
+  return pill;
+}
+
+function dueLine(task) {
+  const now = new Date();
+  const mine = assignments(state).filter((a) => a.task.id === task.id);
+  const soonest = mine
+    .map((a) => a.dueAt)
+    .sort((x, y) => (x?.getTime() ?? 0) - (y?.getTime() ?? 0))[0];
+  const last = mine
+    .map((a) => a.lastDone)
+    .filter(Boolean)
+    .sort((x, y) => y.at - x.at)[0];
+  if (!last) return 'Not done yet';
+  return `${relative(soonest, now)} · last done ${fmtDate(last.at)} by ${personName(state, last.by)}`;
+}
+
+function taskRow(task, { pill = true, step = null } = {}) {
+  const row = el('div', { className: 'trow', tabIndex: 0, role: 'button' });
+  row.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor(task); }
+  });
+  if (step) row.append(el('span', { className: 'step', textContent: step }));
+  row.append(
+    el('span', { className: 'tmain' },
+      el('span', { className: 'tname', textContent: task.name }),
+      el('span', { className: 'meta', textContent: dueLine(task) })
+    )
+  );
+  if (pill) row.append(task.mode === 'each' ? personPill(null) : personPill(upNext(state, task), task));
+  row.addEventListener('click', () => openEditor(task));
+  return row;
+}
+
+function renderDaily() {
+  const host = $('#daily');
+  host.replaceChildren();
+  const items = state.daily || [];
+  if (!items.length) return;
+
+  host.append(
+    el('div', { className: 'section-head' },
+      el('h2', { textContent: 'Daily / after use' }),
+      el('span', { className: 'hint', textContent: 'No reminders — just the house rules.' })
+    ),
+    el('ul', { className: 'card daily' },
+      items.map((item) =>
+        el('li', {},
+          el('span', { className: 'dicon', textContent: item.icon || '•' }),
+          el('span', { textContent: item.text ?? item })
+        )
+      )
+    )
+  );
+}
+
+function cadenceLabel(days) {
+  if (days === 1) return 'Daily';
+  if (days === 7) return 'Weekly';
+  if (days % 7 === 0) return `Every ${days / 7} weeks`;
+  if (days === 30 || days === 31) return 'Monthly';
+  return `Every ${days} days`;
+}
+
+function groupCard(groupId, members) {
+  const g = state.groups?.[groupId] ?? {};
+  const same = members.filter((t) => !t.opposite);
+  const opposite = members.filter((t) => t.opposite);
+  const owner = ownerOf(state, same[0] ?? members[0]);
+
+  const card = el('div', { className: 'card group' },
+    el('div', { className: 'group-head' },
+      el('span', { className: 'group-name', textContent: g.name || 'Linked tasks' }),
+      g.note ? el('p', { className: 'hint', textContent: g.note }) : null
+    )
+  );
+  const lane = (label, personId, tasks, numbered) => card.append(
+    el('div', { className: 'lane-head' },
+      el('span', { className: 'lane-label', textContent: label }),
+      personPill(personId, tasks[0])
+    ),
+    ...tasks.map((t, i) => taskRow(t, { pill: false, step: numbered ? String(i + 1) : null }))
+  );
+  lane('Upstairs', owner, same, same.length > 1);
+  if (opposite.length) lane('Downstairs', otherPerson(state, owner), opposite, false);
+  return card;
+}
+
 function renderAllTasks() {
+  renderDaily();
   const host = $('#all-tasks');
   host.replaceChildren();
-  const now = new Date();
-  const byTask = new Map();
-  for (const a of assignments(state)) {
-    if (!byTask.has(a.task.id)) byTask.set(a.task.id, []);
-    byTask.get(a.task.id).push(a);
-  }
 
-  for (const task of state.tasks) {
-    const list = byTask.get(task.id) || [];
-    const upNext = task.mode === 'each'
-      ? 'each of us'
-      : personName(state, task.nextOwner ?? state.people[0].id);
-    const soonest = list
-      .map((a) => a.dueAt)
-      .sort((x, y) => (x?.getTime() ?? 0) - (y?.getTime() ?? 0))[0];
+  // One section per cadence, most frequent first. Each linked group lands in
+  // the section of its most frequent member, as a single card.
+  const active = state.tasks.filter((t) => t.active !== false);
+  const cadenceOf = (t) => t.group
+    ? Math.min(...active.filter((m) => m.group === t.group).map((m) => m.frequencyDays))
+    : t.frequencyDays;
+  const cadences = [...new Set(active.map(cadenceOf))].sort((a, b) => a - b);
 
-    const card = el('div', { className: 'card' },
-      el('div', { className: 'name', textContent: task.name }),
-      el('div', {
-        className: 'meta',
-        textContent: `Every ${task.frequencyDays} days · ${relative(soonest, now)} · up next: ${upNext}`,
-      })
+  cadences.forEach((days, i) => {
+    host.append(
+      el('div', { className: 'section-head' },
+        el('h2', { textContent: cadenceLabel(days) }),
+        i === 0
+          ? el('span', { className: 'hint', textContent: 'Tap a task to edit it. Tap a name to swap who’s up.' })
+          : null
+      )
     );
-    card.style.cursor = 'pointer';
-    card.addEventListener('click', () => openEditor(task));
-    host.append(card);
-  }
+
+    const here = active.filter((t) => cadenceOf(t) === days);
+    const drawn = new Set();
+    for (const t of here) {
+      if (!t.group || drawn.has(t.group)) continue;
+      drawn.add(t.group);
+      host.append(groupCard(t.group, here.filter((m) => m.group === t.group)));
+    }
+    const loose = here.filter((t) => !t.group);
+    if (loose.length) host.append(el('div', { className: 'card list' }, loose.map((t) => taskRow(t))));
+  });
 }
 
 /* ---------- history ---------- */
@@ -383,7 +503,13 @@ function openEditor(task) {
   owner.replaceChildren(
     ...state.people.map((p) => el('option', { value: p.id, textContent: p.name }))
   );
-  owner.value = task.nextOwner ?? state.people[0].id;
+  owner.value = task.mode === 'each' ? state.people[0].id : ownerOf(state, task);
+  // A linked task has to alternate with its group; its mode is not a free choice.
+  $('#e-mode').disabled = Boolean(task.group);
+  $('#e-group-note').hidden = !task.group;
+  $('#e-group-note').textContent = task.group
+    ? `Linked with the rest of "${state.groups?.[task.group]?.name ?? task.group}" — changing who's up moves the whole group.`
+    : '';
   syncOwnerVisibility();
   $('#editor').showModal();
 }
@@ -558,6 +684,13 @@ $('#editor').addEventListener('close', () => {
   };
   mutate((s) => {
     const t = s.tasks.find((x) => x.id === id);
+    if (t.group) {
+      // Picking the owner of one member picks it for the whole group.
+      const { nextOwner, mode, ...rest } = patch;
+      Object.assign(t, rest);
+      s.groups[t.group].nextOwner = t.opposite ? otherPerson(s, nextOwner) : nextOwner;
+      return;
+    }
     Object.assign(t, patch);
     if (t.mode === 'each') delete t.nextOwner;
   }, `Update task: ${patch.name}`);

@@ -91,10 +91,57 @@ export function lastDone(state, taskId, personId = null) {
   return best;
 }
 
+/* ---------- linked groups ----------
+ *
+ * Some tasks have to go to the same person because one blocks the other
+ * (vacuum upstairs before you Swiffer it). Tasks with the same `group` share
+ * one owner, stored on state.groups[group].nextOwner. A member marked
+ * `opposite` always goes to the other person, which is how downstairs stays
+ * paired against upstairs.
+ *
+ * The group's turn flips once every member has been done since the last flip,
+ * so a half-finished group never splits across people.
+ */
+
+function groupOf(state, task) {
+  return task.group ? state.groups?.[task.group] : null;
+}
+
+function groupMembers(state, groupId) {
+  return state.tasks.filter((t) => t.group === groupId && t.active !== false);
+}
+
+/** Who a task currently belongs to (not meaningful for mode "each"). */
+export function ownerOf(state, task) {
+  const g = groupOf(state, task);
+  if (g) {
+    const base = g.nextOwner ?? state.people[0].id;
+    return task.opposite ? otherPerson(state, base) : base;
+  }
+  return task.nextOwner ?? state.people[0].id;
+}
+
+/** Completions of a task since its group's last flip. */
+function doneThisCycle(state, task) {
+  const g = groupOf(state, task);
+  const since = g?.cycleStart ? new Date(g.cycleStart).getTime() : -Infinity;
+  return state.log.some((e) => e.taskId === task.id && new Date(e.at).getTime() > since);
+}
+
+/**
+ * Who does this task next time round. For a grouped task already done this
+ * cycle, that is the other person, even though the group has not flipped yet.
+ */
+export function upNext(state, task) {
+  if (task.mode === 'each') return null;
+  const owner = ownerOf(state, task);
+  return task.group && doneThisCycle(state, task) ? otherPerson(state, owner) : owner;
+}
+
 /**
  * Every (task, person) pairing that currently exists, with its due date.
  *
- *   mode "alternate" -> one assignment, owned by task.nextOwner
+ *   mode "alternate" -> one assignment, owned by ownerOf(task)
  *   mode "each"      -> one assignment per person, tracked independently
  *
  * dueAt === null means "never done, due as soon as possible".
@@ -106,7 +153,7 @@ export function assignments(state) {
     const owners =
       task.mode === 'each'
         ? state.people.map((p) => p.id)
-        : [task.nextOwner ?? state.people[0].id];
+        : [ownerOf(state, task)];
 
     for (const personId of owners) {
       const scopedTo = task.mode === 'each' ? personId : null;
@@ -151,8 +198,20 @@ export function weekendPlan(state, now = new Date()) {
 export function completeTask(state, taskId, personId, at = new Date()) {
   const task = state.tasks.find((t) => t.id === taskId);
   if (!task) throw new Error(`Unknown task: ${taskId}`);
-  state.log.push({ taskId, by: personId, at: at.toISOString() });
-  if (task.mode !== 'each') task.nextOwner = otherPerson(state, personId);
+  const entry = { taskId, by: personId, at: at.toISOString() };
+  state.log.push(entry);
+
+  const g = groupOf(state, task);
+  if (g) {
+    // Flip only once the whole group is done, and remember how to undo it.
+    if (groupMembers(state, task.group).every((m) => doneThisCycle(state, m))) {
+      entry.groupFlip = { prevOwner: g.nextOwner, prevCycleStart: g.cycleStart ?? null };
+      g.nextOwner = otherPerson(state, g.nextOwner ?? state.people[0].id);
+      g.cycleStart = entry.at;
+    }
+  } else if (task.mode !== 'each') {
+    task.nextOwner = otherPerson(state, personId);
+  }
   return state;
 }
 
@@ -160,12 +219,28 @@ export function completeTask(state, taskId, personId, at = new Date()) {
 export function undoTask(state, taskId, personId) {
   for (let i = state.log.length - 1; i >= 0; i--) {
     const e = state.log[i];
-    if (e.taskId === taskId && (!personId || e.by === personId)) {
-      state.log.splice(i, 1);
-      const task = state.tasks.find((t) => t.id === taskId);
-      if (task && task.mode !== 'each') task.nextOwner = e.by;
-      return state;
+    if (e.taskId !== taskId || (personId && e.by !== personId)) continue;
+
+    state.log.splice(i, 1);
+    const task = state.tasks.find((t) => t.id === taskId);
+    const g = task && groupOf(state, task);
+
+    if (g) {
+      // If the group flipped at or after this entry, the cycle is no longer
+      // complete: put the group back how it was before that flip.
+      const flip = state.log
+        .filter((x) => x.groupFlip && state.tasks.find((t) => t.id === x.taskId)?.group === task.group)
+        .filter((x) => new Date(x.at) >= new Date(e.at))
+        .pop() ?? (e.groupFlip ? e : null);
+      if (flip) {
+        g.nextOwner = flip.groupFlip.prevOwner;
+        g.cycleStart = flip.groupFlip.prevCycleStart;
+        delete flip.groupFlip;
+      }
+    } else if (task && task.mode !== 'each') {
+      task.nextOwner = e.by;
     }
+    return state;
   }
   return state;
 }

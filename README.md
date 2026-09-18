@@ -23,8 +23,19 @@ signs in with a token.
 
 ## How the rotation works
 
+The **Tasks** tab opens with the daily / after-use house rules — a reference
+list with no tracking or reminders — then the rotating tasks, sectioned by how
+often they come round. Tap a task to edit its name, frequency, or reminder
+instructions; tap a name pill to hand it to the other person.
+
 Each task carries its own frequency and its own "up next" person, so the two of
 you split every weekend rather than trading whole weekends.
+
+Tasks can be **linked** with a shared `group`, when one has to follow another.
+The floors are linked so that whoever vacuums upstairs also Swiffers it — nobody
+waits on the other person — while downstairs (marked `opposite`) always goes to
+the other one. A linked group only rotates once every task in it is done, so it
+can never end up split.
 
 | Mode | Meaning |
 | --- | --- |

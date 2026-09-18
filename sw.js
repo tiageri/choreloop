@@ -1,7 +1,7 @@
 // CleanIt service worker: receives Friday push reminders and keeps a
 // network-first cache of the app shell so the icon opens instantly.
 
-const CACHE = 'cleanit-v2';
+const CACHE = 'cleanit-v3';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './schedule.js', './animations.js', './config.js'];
 
 self.addEventListener('install', (event) => {

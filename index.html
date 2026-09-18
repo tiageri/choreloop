@@ -32,7 +32,7 @@
 
   <!-- ---------- All tasks ---------- -->
   <section id="view-tasks" class="view" hidden>
-    <p class="hint">Tap a task to edit how often it comes around and what the reminder says.</p>
+    <div id="daily"></div>
     <div id="all-tasks"></div>
   </section>
 
@@ -103,6 +103,7 @@
     <label id="e-owner-wrap">Up next
       <select id="e-owner"></select>
     </label>
+    <p id="e-group-note" class="hint" hidden></p>
     <label>Instructions (included in the reminder)
       <textarea id="e-instructions" rows="10"></textarea>
     </label>
