@@ -2,9 +2,9 @@
 // be public, `repo` only names the private data repo, and the token that
 // authorizes reads and writes lives in each browser's localStorage.
 window.CHORELOOP_CONFIG = {
-  repo: "OWNER/REPO-data",
+  repo: "tiageri/choreloop-data",
   branch: "main",
   dataPath: "state.json",
   subsPath: "subscriptions.json",
-  vapidPublicKey: "REPLACE_ME",
+  vapidPublicKey: "BNgtciUd5wWhV1ykdI2etuLoVBtvS_l5FunvMlsdOdVguLGglr1wlfLGi4_JxenEyvWgBnfMfeRKFzV5ABQvXcE",
 };

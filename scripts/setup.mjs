@@ -18,6 +18,27 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
+/**
+ * Answer order: environment variable, then the prompt, then the default.
+ * The env path exists so the whole thing can run unattended — piping answers
+ * into readline is unreliable, because stdin can close before the later
+ * questions are even asked.
+ */
+async function ask(envKey, prompt, fallback) {
+  const fromEnv = process.env[envKey];
+  if (fromEnv !== undefined && fromEnv !== '') {
+    console.log(`${prompt}${fromEnv}   (from ${envKey})`);
+    return fromEnv;
+  }
+  // With no terminal attached there is nobody to answer, and a pending
+  // readline question on a closed stdin never settles. Take the default.
+  if (!process.stdin.isTTY) {
+    console.log(`${prompt}${fallback}   (default)`);
+    return fallback;
+  }
+  return (await rl.question(prompt)).trim() || fallback;
+}
+
 const run = (cmd, args, opts = {}) =>
   execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...opts }).toString().trim();
 const quiet = (cmd, args, opts) => { try { return run(cmd, args, opts); } catch { return null; } };
@@ -70,26 +91,27 @@ const owner = viewer.login;
 /* ---------- names ---------- */
 
 const defaultName = path.basename(ROOT);
-const appName = (await rl.question(`Public app repo name [${defaultName}]: `)).trim() || defaultName;
-const dataName = (await rl.question(`Private data repo name [${appName}-data]: `)).trim() || `${appName}-data`;
+const appName = await ask('CHORELOOP_APP', `Public app repo name [${defaultName}]: `, defaultName);
+const dataName = await ask('CHORELOOP_DATA', `Private data repo name [${appName}-data]: `, `${appName}-data`);
 
 const appRepo = `${owner}/${appName}`;
 const dataRepo = `${owner}/${dataName}`;
 const pagesUrl = `https://${owner.toLowerCase()}.github.io/${appName}/`;
 
-const you = (await rl.question('Your first name [Me]: ')).trim() || 'Me';
-const them = (await rl.question("Roommate's first name [Roommate]: ")).trim() || 'Roommate';
-const timezone = (await rl.question('Time zone [America/New_York]: ')).trim() || 'America/New_York';
+const you = await ask('CHORELOOP_YOU', 'Your first name [Me]: ', 'Me');
+const them = await ask('CHORELOOP_THEM', "Roommate's first name [Roommate]: ", 'Roommate');
+const timezone = await ask('CHORELOOP_TZ', 'Time zone [America/New_York]: ', 'America/New_York');
 try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }); }
 catch { console.error(`"${timezone}" is not a valid IANA time zone.`); process.exit(1); }
-const contact = (await rl.question('Contact email for the push services [choreloop@example.com]: ')).trim()
-  || 'choreloop@example.com';
+const contact = await ask('CHORELOOP_CONTACT',
+  'Contact email for the push services [choreloop@example.com]: ', 'choreloop@example.com');
 
 console.log(`
   public   ${appRepo}        ->  ${pagesUrl}
   private  ${dataRepo}
 `);
-if (!/^y/i.test((await rl.question('Create these on GitHub and push? [y/N] ')).trim())) {
+const confirm = await ask('CHORELOOP_YES', 'Create these on GitHub and push? [y/N] ', 'n');
+if (!/^(y|1|true)/i.test(confirm)) {
   console.log('Nothing done.');
   process.exit(0);
 }
