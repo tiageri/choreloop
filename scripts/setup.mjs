@@ -24,6 +24,39 @@ const quiet = (cmd, args, opts) => { try { return run(cmd, args, opts); } catch 
 const step = (msg) => console.log(`\n• ${msg}`);
 const ok = (msg) => console.log(`  ✓ ${msg}`);
 
+/* ---------- scaffolding ---------- */
+
+/** Lay out the private data repo's files. Touches nothing on GitHub. */
+function scaffoldDataRepo(dataDir, { you, them, timezone, appRepo }) {
+  fs.cpSync(path.join(ROOT, 'template'), dataDir, { recursive: true });
+  fs.mkdirSync(path.join(dataDir, 'data'), { recursive: true });
+
+  // Seed the live state from the template, with the real names filled in.
+  const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/seed.json'), 'utf8'));
+  seed.people[0].name = you;
+  seed.people[1].name = them;
+  seed.timezone = timezone;
+  fs.writeFileSync(path.join(dataDir, 'data/state.json'), JSON.stringify(seed, null, 2) + '\n');
+  fs.writeFileSync(path.join(dataDir, 'data/subscriptions.json'), '{}\n');
+  fs.writeFileSync(path.join(dataDir, 'data/reminders-sent.json'), '{}\n');
+
+  // Point the template's placeholders at the real app repo.
+  for (const rel of ['.github/workflows/remind.yml', 'README.md']) {
+    const f = path.join(dataDir, rel);
+    fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replaceAll('__APP_REPO__', appRepo));
+  }
+}
+
+// `--scaffold-only <dir>` builds the data repo's files and stops, so the layout
+// can be checked without creating repos.
+if (process.argv[2] === '--scaffold-only') {
+  scaffoldDataRepo(path.resolve(process.argv[3]), {
+    you: 'PersonA', them: 'PersonB', timezone: 'America/New_York', appRepo: 'owner/app',
+  });
+  console.log('scaffolded ' + process.argv[3]);
+  process.exit(0);
+}
+
 /* ---------- preconditions ---------- */
 
 if (quiet('gh', ['auth', 'status']) === null) {
@@ -80,23 +113,7 @@ if (fs.existsSync(dataDir)) {
   process.exit(1);
 }
 
-fs.cpSync(path.join(ROOT, 'template'), dataDir, { recursive: true });
-fs.mkdirSync(path.join(dataDir, 'data'), { recursive: true });
-
-// Seed the live state from the template, with the real names filled in.
-const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/seed.json'), 'utf8'));
-seed.people[0].name = you;
-seed.people[1].name = them;
-seed.timezone = timezone;
-fs.writeFileSync(path.join(dataDir, 'data/state.json'), JSON.stringify(seed, null, 2) + '\n');
-fs.writeFileSync(path.join(dataDir, 'data/subscriptions.json'), '{}\n');
-fs.writeFileSync(path.join(dataDir, 'data/reminders-sent.json'), '{}\n');
-
-// Point the template's placeholders at the real app repo.
-for (const rel of ['.github/workflows/remind.yml', 'README.md']) {
-  const f = path.join(dataDir, rel);
-  fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replaceAll('__APP_REPO__', appRepo));
-}
+scaffoldDataRepo(dataDir, { you, them, timezone, appRepo });
 ok('files written');
 
 run('git', ['init', '-q', '-b', 'main'], { cwd: dataDir });
