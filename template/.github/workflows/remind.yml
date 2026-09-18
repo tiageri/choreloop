@@ -25,26 +25,36 @@ jobs:
   remind:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the data (this repo)
+        uses: actions/checkout@v4
         with:
           # Full history so the rebase below works if a chore was checked off
           # while this job was running.
           fetch-depth: 0
 
+      - name: Check out the app code
+        uses: actions/checkout@v4
+        with:
+          repository: __APP_REPO__
+          path: .app
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
+          cache-dependency-path: .app/package-lock.json
 
       - run: npm ci --omit=dev
+        working-directory: .app
 
       - name: Send reminders
         env:
+          CHORELOOP_DATA_DIR: ${{ github.workspace }}/data
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
           CHORELOOP_URL: ${{ vars.CHORELOOP_URL }}
-        run: node scripts/send-reminders.mjs ${{ inputs.force && '--force' || '' }}
+        run: node .app/scripts/send-reminders.mjs ${{ inputs.force && '--force' || '' }}
 
       - name: Record what was sent
         run: |

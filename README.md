@@ -1,9 +1,17 @@
 # Choreloop
 
-A shared cleaning rotation for two people. Everything lives in this repo: the
-app is a static page on GitHub Pages, the data is a JSON file in `data/`, and a
-GitHub Actions cron sends the Friday afternoon push reminders. No server, no
-database, no third-party account.
+A shared cleaning rotation for two people. No server, no database, no
+third-party account — it runs on two GitHub repos:
+
+- **this repo (public)** — the app, a static page served by GitHub Pages, plus
+  the scheduling rules and the reminder script
+- **`<name>-data` (private)** — your names, chores, and the full completion log,
+  plus the GitHub Actions cron that sends the Friday reminders
+
+The split exists because free GitHub Pages only publishes from a public repo.
+Keeping the data in a separate private repo means nothing personal is exposed:
+this repo holds code only, and the deployed site is an empty shell until someone
+signs in with a token.
 
 - **Friday afternoon** each person gets a push listing the chores they owe that
   weekend, with the how-to steps for each one.
@@ -32,24 +40,26 @@ roommate, the next turn correctly goes back to them.
 ## Setup
 
 ```bash
+gh auth login
 npm install
 npm run setup
 ```
 
-`npm run setup` generates the VAPID keypair, writes `config.js`, and uploads the
-Actions secrets via the `gh` CLI (it prints them for manual entry if `gh` isn't
-signed in). Then:
+`npm run setup` asks for your names and time zone, then creates the private data
+repo from `template/`, generates the VAPID keypair, writes `config.js`, uploads
+the Actions secrets, pushes both repos, and turns on Pages.
 
-1. `git add -A && git commit -m "Set up Choreloop" && git push`
-2. On GitHub: **Settings → Pages → Source: GitHub Actions**
-3. Each of you creates a [fine-grained token](https://github.com/settings/personal-access-tokens/new)
-   scoped to **this repo only**, with **Contents: Read and write**.
-4. On each iPhone: open the Pages URL in Safari → Share → **Add to Home Screen**
-   → open it from the icon → Settings → pick who you are, paste your token, and
-   tap **Turn on reminders**.
+Then each of you, once:
 
-Step 4's Home Screen part is not optional. iOS only delivers web push to a page
-that has been installed to the Home Screen and opened from that icon.
+1. Create a [fine-grained token](https://github.com/settings/personal-access-tokens/new)
+   scoped to **the private data repo only**, with **Contents: Read and write**.
+2. On your iPhone open the Pages URL in Safari → Share → **Add to Home Screen**
+   → open Choreloop from the icon.
+3. Settings → pick who you are, paste the token, tap **Turn on reminders**.
+
+Step 2 is not optional. iOS only delivers web push to a page that has been
+installed to the Home Screen and opened from that icon — a normal Safari tab
+will never receive one.
 
 ## Day-to-day
 
@@ -62,11 +72,12 @@ the instructions that go out in the reminder.
 
 ## Reminders
 
-`.github/workflows/remind.yml` runs hourly across Friday (UTC) and
-`scripts/send-reminders.mjs` decides which run is the right *local* moment, based
-on `timezone` and `reminderHour` in `data/state.json`. Daylight saving is
-therefore a non-issue and the cron never needs editing — change the hour in the
-app's Settings tab instead.
+The cron lives in the **data** repo (`.github/workflows/remind.yml`, created from
+`template/`). It checks out this repo for the code, runs hourly across Friday
+UTC, and `scripts/send-reminders.mjs` decides which run is the right *local*
+moment, based on `timezone` and `reminderHour` in the data repo's `state.json`.
+Daylight saving is therefore a non-issue and the cron never needs editing —
+change the hour in the app's Settings tab instead.
 
 It records who it has already told for a given weekend, so a run delayed by
 GitHub still lands exactly once. A Sunday run acts as a catch-up if Friday's was
@@ -75,7 +86,7 @@ missed entirely.
 Preview what the notifications will say, without sending anything:
 
 ```bash
-npm run remind -- --dry-run
+CHORELOOP_DATA_DIR=../choreloop-data/data npm run remind -- --dry-run
 ```
 
 Send one right now (Actions tab → Weekend reminders → Run workflow) if you want
@@ -88,34 +99,48 @@ npm run preview
 ```
 
 Serves the app at <http://localhost:8787> against a small emulator of the GitHub
-contents API, reading and writing the real files in `data/`, so the app code runs
-unmodified. Any non-empty string works as the token. Push notifications can't be
-exercised locally — that needs the deployed HTTPS site.
+contents API, so the app code runs unmodified. It works on a scratch copy in
+`.preview-data/` (seeded from `data/seed.json`, gitignored), so experimenting
+never touches the real data. Any non-empty string works as the token. Push
+notifications can't be exercised locally — that needs the deployed HTTPS site.
 
-## A note on repo visibility
+## What is and isn't public
 
-GitHub Pages on a free personal account requires a **public** repo, so assume
-this one is public. What that exposes is your two first names, your chore names
-and instructions, and the dates things were done.
+Public, in this repo: the app source, the scheduling rules, and `data/seed.json`
+— the starting chore template, with no names and an empty log.
 
-Push subscription endpoints live in `data/subscriptions.json` and are also
-visible, but they are not usable on their own: every push must be signed with
-the VAPID private key, which stays in Actions secrets. Your access tokens are
-never committed — they live in each browser's `localStorage` only.
+Private, in the data repo: your names, your live chore list and instructions,
+every completion date, and your push subscriptions.
 
-If you'd rather keep the history private, GitHub Pro allows Pages on a private
-repo and nothing else here needs to change.
+The deployed Pages site is reachable by URL but contains no data — it fetches
+everything from the private repo using the token in your browser. Your tokens
+are never committed; they live in each browser's `localStorage` only.
+
+If you would rather have a single private repo, GitHub Pro allows Pages from
+one. Then move `data/` and the cron back here and point `config.js` at this
+repo.
 
 ## Layout
+
+This repo (public):
 
 ```
 index.html  app.js  styles.css     the app
 schedule.js                        due dates and rotation, shared by app and cron
-config.js                          repo + VAPID public key (written by setup)
+config.js                          data repo + VAPID public key (written by setup)
 sw.js  manifest.webmanifest        service worker and PWA install metadata
+data/seed.json                     starting chore template, no personal data
+scripts/send-reminders.mjs         builds and sends the Friday push
+scripts/setup.mjs                  creates both repos and wires them together
+template/                          scaffold for the private data repo
+.github/workflows/deploy.yml       publishes the app to Pages
+```
+
+The data repo (private):
+
+```
 data/state.json                    people, tasks, and the completion log
 data/subscriptions.json            one push subscription per person
 data/reminders-sent.json           dedupe marker for the cron
-scripts/send-reminders.mjs         builds and sends the Friday push
-.github/workflows/                 Pages deploy + hourly Friday reminder cron
+.github/workflows/remind.yml       hourly Friday cron; checks out this repo
 ```

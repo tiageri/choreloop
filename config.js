@@ -1,9 +1,10 @@
-// Filled in by `npm run setup`. Safe to commit: the VAPID public key is meant
-// to be public, and the token that authorizes writes lives only in your browser.
+// Written by `npm run setup`. Safe to commit: the VAPID public key is meant to
+// be public, `repo` only names the private data repo, and the token that
+// authorizes reads and writes lives in each browser's localStorage.
 window.CHORELOOP_CONFIG = {
-  repo: "OWNER/REPO",
+  repo: "OWNER/REPO-data",
   branch: "main",
-  dataPath: "data/state.json",
-  subsPath: "data/subscriptions.json",
+  dataPath: "state.json",
+  subsPath: "subscriptions.json",
   vapidPublicKey: "REPLACE_ME",
 };

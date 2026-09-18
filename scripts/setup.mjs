@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * One-time setup: generates the VAPID keypair, writes config.js, and (if the
- * GitHub CLI is signed in) uploads the Actions secrets for you.
+ * One-time setup for the two-repo layout.
  *
- *   npm run setup
+ *   public  <owner>/<name>        this repo: app code, deployed to Pages
+ *   private <owner>/<name>-data   chore state + the Friday reminder cron
+ *
+ * Creates both on GitHub, writes config.js, uploads the VAPID secrets, and
+ * pushes. Requires the GitHub CLI to be signed in (`gh auth login`).
  */
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { generateKeyPairSync } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,27 +18,50 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-const sh = (cmd) => execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-const tryShell = (cmd) => { try { return sh(cmd); } catch { return null; } };
+const run = (cmd, args, opts = {}) =>
+  execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], ...opts }).toString().trim();
+const quiet = (cmd, args, opts) => { try { return run(cmd, args, opts); } catch { return null; } };
+const step = (msg) => console.log(`\n• ${msg}`);
+const ok = (msg) => console.log(`  ✓ ${msg}`);
 
-/* ---------- 1. which repo? ---------- */
+/* ---------- preconditions ---------- */
 
-let repo = process.argv[2];
-if (!repo) {
-  const remote = tryShell('git remote get-url origin') || '';
-  const guess = remote.match(/github\.com[:/](.+?)(?:\.git)?$/)?.[1];
-  repo = (await rl.question(`GitHub repo${guess ? ` [${guess}]` : ' (owner/name)'}: `)).trim() || guess;
-}
-if (!/^[\w.-]+\/[\w.-]+$/.test(repo || '')) {
-  console.error('Need a repo in owner/name form.');
+if (quiet('gh', ['auth', 'status']) === null) {
+  console.error('\nGitHub CLI is not signed in. Run:\n\n    gh auth login\n\nthen re-run `npm run setup`.');
   process.exit(1);
 }
 
-const branch = tryShell('git rev-parse --abbrev-ref HEAD') || 'main';
-const [owner, name] = repo.split('/');
-const pagesUrl = `https://${owner.toLowerCase()}.github.io/${name}/`;
+const viewer = JSON.parse(run('gh', ['api', 'user']));
+const owner = viewer.login;
 
-/* ---------- 2. keys ---------- */
+/* ---------- names ---------- */
+
+const defaultName = path.basename(ROOT);
+const appName = (await rl.question(`Public app repo name [${defaultName}]: `)).trim() || defaultName;
+const dataName = (await rl.question(`Private data repo name [${appName}-data]: `)).trim() || `${appName}-data`;
+
+const appRepo = `${owner}/${appName}`;
+const dataRepo = `${owner}/${dataName}`;
+const pagesUrl = `https://${owner.toLowerCase()}.github.io/${appName}/`;
+
+const you = (await rl.question('Your first name [Me]: ')).trim() || 'Me';
+const them = (await rl.question("Roommate's first name [Roommate]: ")).trim() || 'Roommate';
+const timezone = (await rl.question('Time zone [America/New_York]: ')).trim() || 'America/New_York';
+try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }); }
+catch { console.error(`"${timezone}" is not a valid IANA time zone.`); process.exit(1); }
+const contact = (await rl.question('Contact email for the push services [choreloop@example.com]: ')).trim()
+  || 'choreloop@example.com';
+
+console.log(`
+  public   ${appRepo}        ->  ${pagesUrl}
+  private  ${dataRepo}
+`);
+if (!/^y/i.test((await rl.question('Create these on GitHub and push? [y/N] ')).trim())) {
+  console.log('Nothing done.');
+  process.exit(0);
+}
+
+/* ---------- keys ---------- */
 
 const b64url = (b) => Buffer.from(b).toString('base64url');
 const { publicKey, privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
@@ -45,66 +71,115 @@ const vapidPublic = b64url(Buffer.concat([
 ]));
 const vapidPrivate = b64url(Buffer.from(privateKey.export({ format: 'jwk' }).d, 'base64url'));
 
-const contact = (await rl.question('Contact email for the push services [choreloop@example.com]: ')).trim()
-  || 'choreloop@example.com';
+/* ---------- 1. the private data repo ---------- */
 
-/* ---------- 3. write config ---------- */
+step(`Building the private data repo at ../${dataName}`);
+const dataDir = path.join(path.dirname(ROOT), dataName);
+if (fs.existsSync(dataDir)) {
+  console.error(`  ${dataDir} already exists. Move it aside and re-run.`);
+  process.exit(1);
+}
 
+fs.cpSync(path.join(ROOT, 'template'), dataDir, { recursive: true });
+fs.mkdirSync(path.join(dataDir, 'data'), { recursive: true });
+
+// Seed the live state from the template, with the real names filled in.
+const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/seed.json'), 'utf8'));
+seed.people[0].name = you;
+seed.people[1].name = them;
+seed.timezone = timezone;
+fs.writeFileSync(path.join(dataDir, 'data/state.json'), JSON.stringify(seed, null, 2) + '\n');
+fs.writeFileSync(path.join(dataDir, 'data/subscriptions.json'), '{}\n');
+fs.writeFileSync(path.join(dataDir, 'data/reminders-sent.json'), '{}\n');
+
+// Point the template's placeholders at the real app repo.
+for (const rel of ['.github/workflows/remind.yml', 'README.md']) {
+  const f = path.join(dataDir, rel);
+  fs.writeFileSync(f, fs.readFileSync(f, 'utf8').replaceAll('__APP_REPO__', appRepo));
+}
+ok('files written');
+
+run('git', ['init', '-q', '-b', 'main'], { cwd: dataDir });
+run('git', ['add', '-A'], { cwd: dataDir });
+run('git', ['-c', `user.name=${viewer.login}`, '-c', `user.email=${viewer.id}+${viewer.login}@users.noreply.github.com`,
+  'commit', '-q', '-m', 'Choreloop data: initial state and reminder cron'], { cwd: dataDir });
+run('gh', ['repo', 'create', dataRepo, '--private', '--source', dataDir, '--remote', 'origin', '--push']);
+ok(`${dataRepo} created (private) and pushed`);
+
+/* ---------- 2. config + the public app repo ---------- */
+
+step('Writing config.js');
 fs.writeFileSync(path.join(ROOT, 'config.js'),
-`// Written by \`npm run setup\`. Safe to commit: the VAPID public key is meant
-// to be public, and the token that authorizes writes lives only in your browser.
+`// Written by \`npm run setup\`. Safe to commit: the VAPID public key is meant to
+// be public, \`repo\` only names the private data repo, and the token that
+// authorizes reads and writes lives in each browser's localStorage.
 window.CHORELOOP_CONFIG = {
-  repo: ${JSON.stringify(repo)},
-  branch: ${JSON.stringify(branch)},
-  dataPath: "data/state.json",
-  subsPath: "data/subscriptions.json",
+  repo: ${JSON.stringify(dataRepo)},
+  branch: "main",
+  dataPath: "state.json",
+  subsPath: "subscriptions.json",
   vapidPublicKey: ${JSON.stringify(vapidPublic)},
 };
 `);
-console.log('\n✓ config.js written');
+ok(`points at ${dataRepo}`);
 
-/* ---------- 4. secrets ---------- */
-
-const ghReady = tryShell('gh auth status') !== null;
-if (ghReady) {
-  try {
-    for (const [key, value] of [
-      ['VAPID_PUBLIC_KEY', vapidPublic],
-      ['VAPID_PRIVATE_KEY', vapidPrivate],
-      ['VAPID_SUBJECT', `mailto:${contact}`],
-    ]) {
-      execSync(`gh secret set ${key} --repo ${repo} --body ${JSON.stringify(value)}`, { stdio: 'ignore' });
-      console.log(`✓ secret ${key} set`);
-    }
-    execSync(`gh variable set CHORELOOP_URL --repo ${repo} --body ${JSON.stringify(pagesUrl)}`, { stdio: 'ignore' });
-    console.log('✓ variable CHORELOOP_URL set');
-  } catch (e) {
-    console.log(`\n! Could not set them automatically (${e.message.split('\n')[0]}).`);
-    printManualSecrets();
-  }
-} else {
-  console.log('\n! GitHub CLI not signed in — add these by hand.');
-  printManualSecrets();
+step(`Publishing ${appRepo}`);
+run('git', ['add', '-A'], { cwd: ROOT });
+if (quiet('git', ['diff', '--cached', '--quiet'], { cwd: ROOT }) === null) {
+  run('git', ['commit', '-q', '-m', 'Point Choreloop at its private data repo'], { cwd: ROOT });
 }
+if (quiet('git', ['remote', 'get-url', 'origin'], { cwd: ROOT })) {
+  run('git', ['push', '-u', 'origin', 'main'], { cwd: ROOT });
+} else {
+  run('gh', ['repo', 'create', appRepo, '--public', '--source', ROOT, '--remote', 'origin', '--push']);
+}
+ok(`${appRepo} created (public) and pushed`);
 
-function printManualSecrets() {
-  console.log(`\n  Settings → Secrets and variables → Actions, on ${repo}:\n`);
-  console.log(`    Secret   VAPID_PUBLIC_KEY   ${vapidPublic}`);
-  console.log(`    Secret   VAPID_PRIVATE_KEY  ${vapidPrivate}`);
-  console.log(`    Secret   VAPID_SUBJECT      mailto:${contact}`);
-  console.log(`    Variable CHORELOOP_URL      ${pagesUrl}`);
+/* ---------- 3. secrets and Pages ---------- */
+
+step('Uploading secrets to the data repo');
+for (const [key, value] of [
+  ['VAPID_PUBLIC_KEY', vapidPublic],
+  ['VAPID_PRIVATE_KEY', vapidPrivate],
+  ['VAPID_SUBJECT', `mailto:${contact}`],
+]) {
+  run('gh', ['secret', 'set', key, '--repo', dataRepo, '--body', value]);
+  ok(key);
+}
+run('gh', ['variable', 'set', 'CHORELOOP_URL', '--repo', dataRepo, '--body', pagesUrl]);
+ok('CHORELOOP_URL');
+
+step('Turning on GitHub Pages');
+try {
+  execSync(`gh api -X POST repos/${appRepo}/pages -f build_type=workflow`, { stdio: 'ignore' });
+  ok('Pages set to build from GitHub Actions');
+} catch {
+  try {
+    execSync(`gh api -X PUT repos/${appRepo}/pages -f build_type=workflow`, { stdio: 'ignore' });
+    ok('Pages set to build from GitHub Actions');
+  } catch {
+    console.log(`  ! Could not enable it automatically.
+    Do it by hand: https://github.com/${appRepo}/settings/pages -> Source: GitHub Actions`);
+  }
 }
 
 console.log(`
-Next:
-  1. git add -A && git commit -m "Set up Choreloop" && git push
-  2. On GitHub: Settings → Pages → Source: "GitHub Actions"
-  3. Each of you: make a fine-grained token at
+Done.
+
+  App     ${pagesUrl}
+  Data    https://github.com/${dataRepo}  (private)
+
+Each of you, once:
+  1. Make a fine-grained token at
        https://github.com/settings/personal-access-tokens/new
-     scoped to ${repo} only, with Contents: Read and write.
-  4. Open ${pagesUrl} on your iPhone in Safari, Share → Add to Home Screen,
-     then open it from the icon, pick who you are, paste your token,
-     and tap "Turn on reminders".
+     Resource owner ${owner}, repository access: only ${dataRepo},
+     Repository permissions -> Contents: Read and write.
+  2. On your iPhone open ${pagesUrl} in Safari,
+     Share -> Add to Home Screen, then open Choreloop from the icon.
+  3. Settings -> pick who you are, paste the token, Turn on reminders.
+
+The Home Screen step is required: iOS will not deliver web push to a page
+running in a normal Safari tab.
 `);
 
 rl.close();

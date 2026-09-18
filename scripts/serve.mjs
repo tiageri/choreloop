@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT) || 8787;
+// Preview data is scratch: seeded from data/seed.json, never committed.
+const DATA_DIR = path.join(ROOT, '.preview-data');
 
 const TYPES = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript',
@@ -32,6 +34,19 @@ const readBody = (req) =>
     req.on('end', () => resolve(data));
   });
 
+// Seed the scratch data directory on first run.
+fs.mkdirSync(DATA_DIR, { recursive: true });
+for (const [name, seed] of [
+  ['state.json', path.join(ROOT, 'data/seed.json')],
+  ['subscriptions.json', null],
+  ['reminders-sent.json', null],
+]) {
+  const target = path.join(DATA_DIR, name);
+  if (fs.existsSync(target)) continue;
+  fs.writeFileSync(target, seed ? fs.readFileSync(seed) : '{}\n');
+  console.log(`seeded .preview-data/${name}`);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const send = (code, body, type = 'application/json') => {
@@ -42,8 +57,8 @@ const server = http.createServer(async (req, res) => {
   // --- emulated GitHub contents API ---
   const match = url.pathname.match(/^\/repos\/[^/]+\/[^/]+\/contents\/(.+)$/);
   if (match) {
-    const file = path.join(ROOT, decodeURIComponent(match[1]));
-    if (!file.startsWith(path.join(ROOT, 'data'))) return send(403, '{"message":"forbidden"}');
+    const file = path.join(DATA_DIR, path.basename(decodeURIComponent(match[1])));
+    if (!file.startsWith(DATA_DIR)) return send(403, '{"message":"forbidden"}');
 
     if (req.method === 'GET') {
       if (!fs.existsSync(file)) return send(404, '{"message":"Not Found"}');

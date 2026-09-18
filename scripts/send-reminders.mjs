@@ -8,9 +8,12 @@
  * the reminder; this script decides whether *now* is the right local moment and
  * records who it has already told, so a delayed run still lands exactly once.
  *
- * Reads:  data/state.json, data/subscriptions.json, data/reminders-sent.json
- * Writes: data/reminders-sent.json, and data/subscriptions.json when the push
- *         service tells us a subscription is permanently gone.
+ * This script lives in the public app repo but the data lives in the private
+ * one, so the directory is injected via CHORELOOP_DATA_DIR.
+ *
+ * Reads:  <data>/state.json, <data>/subscriptions.json, <data>/reminders-sent.json
+ * Writes: <data>/reminders-sent.json, and <data>/subscriptions.json when the
+ *         push service tells us a subscription is permanently gone.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,9 +25,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DRY = process.argv.includes('--dry-run');
 const FORCE = process.argv.includes('--force');
 
-const STATE_PATH = path.join(ROOT, 'data/state.json');
-const SUBS_PATH = path.join(ROOT, 'data/subscriptions.json');
-const SENT_PATH = path.join(ROOT, 'data/reminders-sent.json');
+const DATA_DIR = process.env.CHORELOOP_DATA_DIR
+  ? path.resolve(process.env.CHORELOOP_DATA_DIR)
+  : path.join(ROOT, 'data');
+
+const STATE_PATH = path.join(DATA_DIR, 'state.json');
+const SUBS_PATH = path.join(DATA_DIR, 'subscriptions.json');
+const SENT_PATH = path.join(DATA_DIR, 'reminders-sent.json');
 
 // Keep the payload comfortably under the ~4KB Web Push ceiling.
 const MAX_BODY = 2400;
