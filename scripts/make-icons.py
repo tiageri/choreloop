@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Choreloop's PNG icons. No image libraries needed."""
+"""Generate CleanIt's PNG icons. No image libraries needed."""
 import zlib, struct, math, os
 
 BG = (31, 111, 92)      # --accent

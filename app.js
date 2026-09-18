@@ -2,8 +2,9 @@ import {
   DAY, weekendPlan, weekendWindow, personName, otherPerson,
   completeTask, undoTask, assignments, startOfDay,
 } from './schedule.js';
+import { celebrate } from './animations.js';
 
-const CFG = window.CHORELOOP_CONFIG;
+const CFG = window.CLEANIT_CONFIG;
 const API = CFG.apiBase ?? 'https://api.github.com';
 
 /* ---------- device-local settings ---------- */
@@ -201,19 +202,22 @@ function taskCard(row, interactive) {
     ariaLabel: row.done ? `Undo ${row.task.name}` : `Mark ${row.task.name} done`,
   });
 
-  check.addEventListener('click', () => {
+  check.addEventListener('click', async () => {
     const name = personName(state, row.personId);
     if (row.done) {
-      mutate(
+      await mutate(
         (s) => undoTask(s, row.taskId, row.personId),
         `Undo: ${row.task.name} (${name})`
       );
-    } else {
-      mutate(
-        (s) => completeTask(s, row.taskId, row.personId, new Date()),
-        `Done: ${row.task.name} (${name})`
-      );
+      return;
     }
+    // Start the celebration immediately — waiting on the round trip to GitHub
+    // would put it a second after the tap, long past feeling like a response.
+    celebrate(row.task);
+    await mutate(
+      (s) => completeTask(s, row.taskId, row.personId, new Date()),
+      `Done: ${row.task.name} (${name})`
+    );
   });
 
   // Build the meta line as parts so the overdue span can be styled without
@@ -444,7 +448,7 @@ function renderPushState() {
     host.append(el('p', { className: 'hint' },
       'iPhones only allow reminders once this is on your Home Screen. ' +
       'Tap the Share button in Safari, choose "Add to Home Screen", ' +
-      'then open Choreloop from the icon and come back here.'
+      'then open CleanIt from the icon and come back here.'
     ));
     return;
   }

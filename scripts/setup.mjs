@@ -91,26 +91,26 @@ const owner = viewer.login;
 /* ---------- names ---------- */
 
 const defaultName = path.basename(ROOT);
-const appName = await ask('CHORELOOP_APP', `Public app repo name [${defaultName}]: `, defaultName);
-const dataName = await ask('CHORELOOP_DATA', `Private data repo name [${appName}-data]: `, `${appName}-data`);
+const appName = await ask('CLEANIT_APP', `Public app repo name [${defaultName}]: `, defaultName);
+const dataName = await ask('CLEANIT_DATA', `Private data repo name [${appName}-data]: `, `${appName}-data`);
 
 const appRepo = `${owner}/${appName}`;
 const dataRepo = `${owner}/${dataName}`;
 const pagesUrl = `https://${owner.toLowerCase()}.github.io/${appName}/`;
 
-const you = await ask('CHORELOOP_YOU', 'Your first name [Me]: ', 'Me');
-const them = await ask('CHORELOOP_THEM', "Roommate's first name [Roommate]: ", 'Roommate');
-const timezone = await ask('CHORELOOP_TZ', 'Time zone [America/New_York]: ', 'America/New_York');
+const you = await ask('CLEANIT_YOU', 'Your first name [Me]: ', 'Me');
+const them = await ask('CLEANIT_THEM', "Roommate's first name [Roommate]: ", 'Roommate');
+const timezone = await ask('CLEANIT_TZ', 'Time zone [America/New_York]: ', 'America/New_York');
 try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }); }
 catch { console.error(`"${timezone}" is not a valid IANA time zone.`); process.exit(1); }
-const contact = await ask('CHORELOOP_CONTACT',
-  'Contact email for the push services [choreloop@example.com]: ', 'choreloop@example.com');
+const contact = await ask('CLEANIT_CONTACT',
+  'Contact email for the push services [cleanit@example.com]: ', 'cleanit@example.com');
 
 console.log(`
   public   ${appRepo}        ->  ${pagesUrl}
   private  ${dataRepo}
 `);
-const confirm = await ask('CHORELOOP_YES', 'Create these on GitHub and push? [y/N] ', 'n');
+const confirm = await ask('CLEANIT_YES', 'Create these on GitHub and push? [y/N] ', 'n');
 if (!/^(y|1|true)/i.test(confirm)) {
   console.log('Nothing done.');
   process.exit(0);
@@ -141,7 +141,7 @@ ok('files written');
 run('git', ['init', '-q', '-b', 'main'], { cwd: dataDir });
 run('git', ['add', '-A'], { cwd: dataDir });
 run('git', ['-c', `user.name=${viewer.login}`, '-c', `user.email=${viewer.id}+${viewer.login}@users.noreply.github.com`,
-  'commit', '-q', '-m', 'Choreloop data: initial state and reminder cron'], { cwd: dataDir });
+  'commit', '-q', '-m', 'CleanIt data: initial state and reminder cron'], { cwd: dataDir });
 run('gh', ['repo', 'create', dataRepo, '--private', '--source', dataDir, '--remote', 'origin', '--push']);
 ok(`${dataRepo} created (private) and pushed`);
 
@@ -152,7 +152,7 @@ fs.writeFileSync(path.join(ROOT, 'config.js'),
 `// Written by \`npm run setup\`. Safe to commit: the VAPID public key is meant to
 // be public, \`repo\` only names the private data repo, and the token that
 // authorizes reads and writes lives in each browser's localStorage.
-window.CHORELOOP_CONFIG = {
+window.CLEANIT_CONFIG = {
   repo: ${JSON.stringify(dataRepo)},
   branch: "main",
   dataPath: "state.json",
@@ -165,7 +165,7 @@ ok(`points at ${dataRepo}`);
 step(`Publishing ${appRepo}`);
 run('git', ['add', '-A'], { cwd: ROOT });
 if (quiet('git', ['diff', '--cached', '--quiet'], { cwd: ROOT }) === null) {
-  run('git', ['commit', '-q', '-m', 'Point Choreloop at its private data repo'], { cwd: ROOT });
+  run('git', ['commit', '-q', '-m', 'Point CleanIt at its private data repo'], { cwd: ROOT });
 }
 if (quiet('git', ['remote', 'get-url', 'origin'], { cwd: ROOT })) {
   run('git', ['push', '-u', 'origin', 'main'], { cwd: ROOT });
@@ -185,8 +185,8 @@ for (const [key, value] of [
   run('gh', ['secret', 'set', key, '--repo', dataRepo, '--body', value]);
   ok(key);
 }
-run('gh', ['variable', 'set', 'CHORELOOP_URL', '--repo', dataRepo, '--body', pagesUrl]);
-ok('CHORELOOP_URL');
+run('gh', ['variable', 'set', 'CLEANIT_URL', '--repo', dataRepo, '--body', pagesUrl]);
+ok('CLEANIT_URL');
 
 step('Turning on GitHub Pages');
 try {
@@ -214,7 +214,7 @@ Each of you, once:
      Resource owner ${owner}, repository access: only ${dataRepo},
      Repository permissions -> Contents: Read and write.
   2. On your iPhone open ${pagesUrl} in Safari,
-     Share -> Add to Home Screen, then open Choreloop from the icon.
+     Share -> Add to Home Screen, then open CleanIt from the icon.
   3. Settings -> pick who you are, paste the token, Turn on reminders.
 
 The Home Screen step is required: iOS will not deliver web push to a page

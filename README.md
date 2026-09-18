@@ -1,4 +1,4 @@
-# Choreloop
+# CleanIt
 
 A shared cleaning rotation for two people. No server, no database, no
 third-party account — it runs on two GitHub repos:
@@ -54,7 +54,7 @@ Then each of you, once:
 1. Create a [fine-grained token](https://github.com/settings/personal-access-tokens/new)
    scoped to **the private data repo only**, with **Contents: Read and write**.
 2. On your iPhone open the Pages URL in Safari → Share → **Add to Home Screen**
-   → open Choreloop from the icon.
+   → open CleanIt from the icon.
 3. Settings → pick who you are, paste the token, tap **Turn on reminders**.
 
 Step 2 is not optional. iOS only delivers web push to a page that has been
@@ -86,7 +86,7 @@ missed entirely.
 Preview what the notifications will say, without sending anything:
 
 ```bash
-CHORELOOP_DATA_DIR=../choreloop-data/data npm run remind -- --dry-run
+CLEANIT_DATA_DIR=../cleanit-data/data npm run remind -- --dry-run
 ```
 
 Send one right now (Actions tab → Weekend reminders → Run workflow) if you want

@@ -2,23 +2,31 @@ name: Weekend reminders
 
 on:
   schedule:
-    # Hourly across Friday and into Saturday UTC. The script itself decides
-    # which run is the right local moment, so daylight saving and time-zone
-    # changes never need a cron edit.
-    - cron: '0 15-23 * * 5'
-    - cron: '0 0-4 * * 6'
+    # Hourly from Friday evening UTC through Monday's small hours, which covers
+    # Friday afternoon, Saturday night and Sunday evening in any US time zone.
+    # The script decides which run is the right local moment and which of the
+    # three stages it is, so daylight saving never needs a cron edit.
+    - cron: '0 18-23 * * 5'
+    - cron: '0 * * * 6'
+    - cron: '0 * * * 0'
+    - cron: '0 0-4 * * 1'
   workflow_dispatch:
     inputs:
       force:
         description: 'Send now, ignoring the schedule and the already-sent marker'
         type: boolean
         default: true
+      stage:
+        description: 'Which reminder to send (blank = whatever fits the current time)'
+        type: choice
+        options: ['', 'friday', 'saturday', 'sunday']
+        default: ''
 
 permissions:
   contents: write
 
 concurrency:
-  group: choreloop-reminders
+  group: cleanit-reminders
   cancel-in-progress: false
 
 jobs:
@@ -49,18 +57,21 @@ jobs:
 
       - name: Send reminders
         env:
-          CHORELOOP_DATA_DIR: ${{ github.workspace }}/data
+          CLEANIT_DATA_DIR: ${{ github.workspace }}/data
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
-          CHORELOOP_URL: ${{ vars.CHORELOOP_URL }}
-        run: node .app/scripts/send-reminders.mjs ${{ inputs.force && '--force' || '' }}
+          CLEANIT_URL: ${{ vars.CLEANIT_URL }}
+        run: |
+          node .app/scripts/send-reminders.mjs \
+            ${{ inputs.force && '--force' || '' }} \
+            ${{ inputs.stage && format('--stage={0}', inputs.stage) || '' }}
 
       - name: Record what was sent
         run: |
           if [ -n "$(git status --porcelain data/)" ]; then
-            git config user.name  'choreloop[bot]'
-            git config user.email 'choreloop[bot]@users.noreply.github.com'
+            git config user.name  'cleanit[bot]'
+            git config user.email 'cleanit[bot]@users.noreply.github.com'
             git add data/
             git commit -m 'Record weekend reminders'
             # Someone may have checked off a chore while this job ran.

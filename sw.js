@@ -1,8 +1,8 @@
-// Choreloop service worker: receives Friday push reminders and keeps a
+// CleanIt service worker: receives Friday push reminders and keeps a
 // network-first cache of the app shell so the icon opens instantly.
 
-const CACHE = 'choreloop-v1';
-const SHELL = ['./', './index.html', './styles.css', './app.js', './schedule.js', './config.js'];
+const CACHE = 'cleanit-v2';
+const SHELL = ['./', './index.html', './styles.css', './app.js', './schedule.js', './animations.js', './config.js'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -35,7 +35,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let payload = { title: 'Choreloop', body: 'You have chores this weekend.' };
+  let payload = { title: 'CleanIt', body: 'You have chores this weekend.' };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {
@@ -47,7 +47,7 @@ self.addEventListener('push', (event) => {
       body: payload.body,
       icon: 'icons/icon-192.png',
       badge: 'icons/icon-192.png',
-      tag: payload.tag || 'choreloop-weekend',
+      tag: payload.tag || 'cleanit-weekend',
       renotify: true,
       data: { url: payload.url || './' },
     })

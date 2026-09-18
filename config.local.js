@@ -1,5 +1,5 @@
 // Only used by `npm run preview`; never deployed.
-window.CHORELOOP_CONFIG = {
+window.CLEANIT_CONFIG = {
   repo: "local/preview",
   branch: "main",
   apiBase: "",

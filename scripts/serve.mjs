@@ -97,4 +97,4 @@ const server = http.createServer(async (req, res) => {
   res.end(fs.readFileSync(file));
 });
 
-server.listen(PORT, () => console.log(`Choreloop preview: http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`CleanIt preview: http://localhost:${PORT}`));

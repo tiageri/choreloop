@@ -1,6 +1,6 @@
 {
-  "name": "Choreloop",
-  "short_name": "Choreloop",
+  "name": "CleanIt",
+  "short_name": "CleanIt",
   "description": "Whose turn it is to clean what, and when it was last done.",
   "start_url": "./",
   "scope": "./",

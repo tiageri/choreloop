@@ -1,6 +1,6 @@
-# Choreloop data
+# CleanIt data
 
-Private half of [Choreloop](https://github.com/__APP_REPO__). Holds the chore
+Private half of [CleanIt](https://github.com/__APP_REPO__). Holds the chore
 state and the cron that sends the Friday reminders. Nothing here is served to
 the web — the app reads it through the GitHub API using each person's token.
 

@@ -270,3 +270,12 @@ code {
   border-radius: 5px;
   word-break: break-all;
 }
+
+/* Celebration overlay. Created on demand and removed when the last particle
+   dies; never interactive. */
+canvas.celebrate {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}

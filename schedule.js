@@ -1,4 +1,4 @@
-// Scheduling rules for Choreloop.
+// Scheduling rules for CleanIt.
 // This module is imported by BOTH the browser app and the GitHub Action that
 // sends reminders, so the two can never disagree about what's due.
 

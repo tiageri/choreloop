@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 /**
- * Sends each person a push notification listing the chores they owe this
- * weekend, with the instructions for each one. Run by .github/workflows/remind.yml
- * on a Friday afternoon cron; run locally with --dry-run to preview.
+ * Sends each person the chores they still owe this weekend, in three stages:
  *
- * The cron fires every hour across Friday so daylight saving can never shift
- * the reminder; this script decides whether *now* is the right local moment and
- * records who it has already told, so a delayed run still lands exactly once.
+ *   friday    the weekend's list, with the how-to steps
+ *   saturday  what is still outstanding, due tomorrow
+ *   sunday    final call, must be finished tonight
+ *
+ * Anyone who has already finished gets nothing — the later stages only chase
+ * what is actually left.
+ *
+ * The cron fires hourly across the weekend so daylight saving can never shift
+ * the timing; this script decides which stage the current local moment belongs
+ * to and records who it has told, so a delayed run still lands exactly once.
  *
  * This script lives in the public app repo but the data lives in the private
- * one, so the directory is injected via CHORELOOP_DATA_DIR.
+ * one, so the directory is injected via CLEANIT_DATA_DIR.
  *
  * Reads:  <data>/state.json, <data>/subscriptions.json, <data>/reminders-sent.json
  * Writes: <data>/reminders-sent.json, and <data>/subscriptions.json when the
@@ -19,14 +24,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import webpush from 'web-push';
-import { weekendPlan, personName, zonedParts } from '../schedule.js';
+import { weekendPlan, zonedParts } from '../schedule.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DRY = process.argv.includes('--dry-run');
 const FORCE = process.argv.includes('--force');
+const stageOverride = process.argv.find((a) => a.startsWith('--stage='))?.split('=')[1];
 
-const DATA_DIR = process.env.CHORELOOP_DATA_DIR
-  ? path.resolve(process.env.CHORELOOP_DATA_DIR)
+const DATA_DIR = process.env.CLEANIT_DATA_DIR
+  ? path.resolve(process.env.CLEANIT_DATA_DIR)
   : path.join(ROOT, 'data');
 
 const STATE_PATH = path.join(DATA_DIR, 'state.json');
@@ -41,29 +47,56 @@ const state = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
 const subs = JSON.parse(fs.readFileSync(SUBS_PATH, 'utf8'));
 const sentLog = JSON.parse(fs.readFileSync(SENT_PATH, 'utf8'));
 
-const now = process.env.CHORELOOP_NOW ? new Date(process.env.CHORELOOP_NOW) : new Date();
+const now = process.env.CLEANIT_NOW ? new Date(process.env.CLEANIT_NOW) : new Date();
 const tz = state.timezone || 'UTC';
 const plan = weekendPlan(state, now);
 
-/* ---------- is this the right moment? ---------- */
+/* ---------- which stage is it? ---------- */
 
-// Key this weekend by its local Friday date so reruns can be deduplicated.
-const wp = zonedParts(plan.window.start, tz);
-const weekendKey = `${wp.year}-${String(wp.month).padStart(2, '0')}-${String(wp.day).padStart(2, '0')}`;
-const alreadyTold = new Set(sentLog[weekendKey] || []);
+// Position within the weekend: Friday 0, Saturday 1, Sunday 2.
+const DAY_INDEX = { 5: 0, 6: 1, 0: 2 };
+
+const STAGES = [
+  { id: 'friday', day: 0, hour: state.reminderHour ?? 16 },
+  { id: 'saturday', day: 1, hour: state.saturdayHour ?? 20 },
+  { id: 'sunday', day: 2, hour: state.sundayHour ?? 17 },
+];
 
 const localNow = zonedParts(now, tz);
-const reminderHour = state.reminderHour ?? 16;
-const isWeekend = [5, 6, 0].includes(localNow.weekday);
-const pastReminderTime = localNow.weekday !== 5 || localNow.hour >= reminderHour;
+const todayIndex = DAY_INDEX[localNow.weekday];
 
-if (!DRY && !FORCE && !(isWeekend && pastReminderTime)) {
+const hasTriggered = (stage) =>
+  todayIndex !== undefined &&
+  (todayIndex > stage.day || (todayIndex === stage.day && localNow.hour >= stage.hour));
+
+// The most recent stage whose moment has passed. Anything earlier is stale:
+// if Friday's run was missed, Saturday's message is the one worth sending.
+const currentStage = [...STAGES].reverse().find(hasTriggered);
+const stage = stageOverride
+  ? STAGES.find((s) => s.id === stageOverride)
+  : currentStage;
+
+if (!stage) {
   console.log(
-    `Not reminder time yet (${tz} says day ${localNow.weekday}, hour ${localNow.hour}; ` +
-    `waiting for Friday ${reminderHour}:00). Nothing to do.`
+    `Nothing due yet (${tz} says day ${localNow.weekday}, hour ${localNow.hour}). ` +
+    `First reminder goes out Friday at ${STAGES[0].hour}:00.`
   );
   process.exit(0);
 }
+
+// Every stage up to and including this one counts as handled, so a stale
+// earlier message can never arrive late.
+const supersededIds = STAGES.slice(0, STAGES.findIndex((s) => s.id === stage.id) + 1)
+  .map((s) => s.id);
+
+/* ---------- the message ---------- */
+
+const wp = zonedParts(plan.window.start, tz);
+const weekendKey = `${wp.year}-${String(wp.month).padStart(2, '0')}-${String(wp.day).padStart(2, '0')}`;
+
+// Tolerate the old flat-array shape from before staged reminders existed.
+const rawEntry = sentLog[weekendKey];
+const weekendLog = Array.isArray(rawEntry) ? { friday: rawEntry } : { ...(rawEntry || {}) };
 
 function clip(text, limit) {
   const t = (text || '').trim();
@@ -71,24 +104,32 @@ function clip(text, limit) {
   return t.slice(0, limit).replace(/\s+\S*$/, '') + '…';
 }
 
+const COPY = {
+  friday: (n) => ({
+    title: n === 1 ? '1 chore this weekend' : `${n} chores this weekend`,
+    lead: `Weekend of ${wp.month}/${wp.day}`,
+  }),
+  saturday: (n) => ({
+    title: n === 1 ? '1 chore left — due tomorrow' : `${n} chores left — due tomorrow`,
+    lead: 'Still outstanding. These need to be done Sunday.',
+  }),
+  sunday: (n) => ({
+    title: n === 1 ? 'Last call: 1 chore' : `Last call: ${n} chores`,
+    lead: 'These need to be finished by tonight, as agreed.',
+  }),
+};
+
 function buildMessage(personId, items) {
-  const count = items.length;
-  const p = zonedParts(plan.window.start, tz);
-  const weekendOf = `${p.month}/${p.day}`;
-
-  const title = count === 1
-    ? '1 chore this weekend'
-    : `${count} chores this weekend`;
-
+  const { title, lead } = COPY[stage.id](items.length);
   const names = items.map((a) => `• ${a.task.name}`).join('\n');
-  let body = `Weekend of ${weekendOf}\n${names}`;
+  let body = `${lead}\n${names}`;
 
   for (const a of items) {
     const how = clip(a.task.instructions, MAX_INSTRUCTIONS_PER_TASK);
     if (!how) continue;
     const block = `\n\n${a.task.name.toUpperCase()}\n${how}`;
     if (body.length + block.length > MAX_BODY) {
-      body += '\n\nOpen Choreloop for the rest of the steps.';
+      body += '\n\nOpen the app for the rest of the steps.';
       break;
     }
     body += block;
@@ -97,8 +138,8 @@ function buildMessage(personId, items) {
   return {
     title,
     body,
-    url: process.env.CHORELOOP_URL || './',
-    tag: `choreloop-${plan.window.start.toISOString().slice(0, 10)}-${personId}`,
+    url: process.env.CLEANIT_URL || './',
+    tag: `cleanit-${weekendKey}-${stage.id}-${personId}`,
   };
 }
 
@@ -107,7 +148,7 @@ function buildMessage(personId, items) {
 if (!DRY) {
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT || 'mailto:choreloop@example.com';
+  const subject = process.env.VAPID_SUBJECT || 'mailto:cleanit@example.com';
   if (!pub || !priv) {
     console.error('VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be set.');
     process.exit(1);
@@ -115,18 +156,21 @@ if (!DRY) {
   webpush.setVapidDetails(subject, pub, priv);
 }
 
+console.log(`Stage: ${stage.id} (weekend of ${weekendKey}, ${tz})`);
+
 let sent = 0;
 let pruned = false;
+const told = new Set(weekendLog[stage.id] || []);
 
 for (const person of state.people) {
   const items = plan.byPerson[person.id] || [];
+
   if (!items.length) {
-    console.log(`${person.name}: nothing due — no push sent.`);
+    console.log(`${person.name}: all clear — nothing to chase.`);
     continue;
   }
-
-  if (!DRY && !FORCE && alreadyTold.has(person.id)) {
-    console.log(`${person.name}: already reminded for the weekend of ${weekendKey}.`);
+  if (!DRY && !FORCE && told.has(person.id)) {
+    console.log(`${person.name}: already sent the ${stage.id} reminder.`);
     continue;
   }
 
@@ -148,9 +192,9 @@ for (const person of state.people) {
   }
 
   try {
-    await webpush.sendNotification(sub, JSON.stringify(message), { TTL: 60 * 60 * 36 });
-    console.log(`${person.name}: sent ${items.length} chore(s).`);
-    alreadyTold.add(person.id);
+    await webpush.sendNotification(sub, JSON.stringify(message), { TTL: 60 * 60 * 12 });
+    console.log(`${person.name}: sent ${stage.id} reminder (${items.length} chore(s)).`);
+    told.add(person.id);
     sent++;
   } catch (err) {
     // 404/410 mean the subscription is permanently dead; anything else is transient.
@@ -165,12 +209,17 @@ for (const person of state.people) {
   }
 }
 
-if (!DRY && alreadyTold.size) {
+/* ---------- remember what went out ---------- */
+
+if (!DRY && told.size) {
+  for (const id of supersededIds) {
+    weekendLog[id] = [...new Set([...(weekendLog[id] || []), ...told])];
+  }
+  sentLog[weekendKey] = weekendLog;
   // Keep only the last few weekends so the file does not grow forever.
-  sentLog[weekendKey] = [...alreadyTold];
   const recent = Object.keys(sentLog).sort().slice(-8);
-  const trimmed = Object.fromEntries(recent.map((k) => [k, sentLog[k]]));
-  fs.writeFileSync(SENT_PATH, JSON.stringify(trimmed, null, 2) + '\n');
+  fs.writeFileSync(SENT_PATH,
+    JSON.stringify(Object.fromEntries(recent.map((k) => [k, sentLog[k]])), null, 2) + '\n');
 }
 
 if (pruned) {

@@ -2,6 +2,8 @@
   "version": 1,
   "timezone": "America/New_York",
   "reminderHour": 16,
+  "saturdayHour": 20,
+  "sundayHour": 17,
   "people": [
     {
       "id": "a",
